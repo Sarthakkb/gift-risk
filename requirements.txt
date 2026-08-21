@@ -1,0 +1,13 @@
+faker
+numpy
+scipy
+matplotlib
+qiskit
+qiskit-aer
+qiskit-algorithms
+streamlit
+pandas
+boto3
+amazon-braket-sdk
+amazon-braket-default-simulator
+python-dotenv
