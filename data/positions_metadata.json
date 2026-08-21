@@ -1,0 +1,29 @@
+{
+  "USD/INR": {
+    "position_id": "GIFT-MU-150631",
+    "entity_name": "Standard Chartered IBU, GIFT City",
+    "desk_name": "Cross-Border Treasury Desk \u2014 USD",
+    "currency_pair": "USD/INR",
+    "valuation_date": "2026-08-21",
+    "counterparty": "HDFC Bank (IFSC Branch)",
+    "trader_ref": "Jasmit Bhardwaj"
+  },
+  "SGD/INR": {
+    "position_id": "GIFT-BC-554710",
+    "entity_name": "DBS Bank IFSC Banking Unit, GIFT City",
+    "desk_name": "Asia FX & Remittances Desk",
+    "currency_pair": "SGD/INR",
+    "valuation_date": "2026-08-21",
+    "counterparty": "Kotak Mahindra Bank IBU",
+    "trader_ref": "Gautam Samra"
+  },
+  "AED/INR": {
+    "position_id": "GIFT-DH-761259",
+    "entity_name": "Axis Bank (IFSC Branch), GIFT City",
+    "desk_name": "Gulf Corridor Trade Finance Desk",
+    "currency_pair": "AED/INR",
+    "valuation_date": "2026-08-21",
+    "counterparty": "First Abu Dhabi Bank (IFSC Branch)",
+    "trader_ref": "Mekhala Bawa"
+  }
+}
