@@ -26,11 +26,35 @@ _DESKS = {
     "AED/INR": "Gulf Corridor Trade Finance Desk",
 }
 
+# Hedge book parameters: hand-set (like scenarios.py), not Faker-random —
+# these need to be domain-coherent, not arbitrary. "exposure_type" sets
+# which way an incremental hedge trades (see src/hedge.py);
+# "current_hedge_ratio" is the fraction of notional already covered by
+# existing forwards, feeding the Hedge Ratio tab's starting point.
+_EXPOSURE = {
+    "USD/INR": {
+        "exposure_type": "payable",
+        "exposure_note": "Offshore USD loan drawdown — desk owes USD at maturity",
+        "current_hedge_ratio": 0.35,
+    },
+    "SGD/INR": {
+        "exposure_type": "receivable",
+        "exposure_note": "SGD trade & remittance receivables — desk is owed SGD",
+        "current_hedge_ratio": 0.55,
+    },
+    "AED/INR": {
+        "exposure_type": "payable",
+        "exposure_note": "LC-backed import payables to Gulf suppliers — desk owes AED",
+        "current_hedge_ratio": 0.20,
+    },
+}
+
 
 def make_position_metadata(pair: str, valuation_date: str = "2026-08-21") -> dict:
     """Generate one synthetic GIFT IFSC position record for a currency pair."""
     bank = fake.random_element(_BANKS)
     counterparty = fake.random_element([b for b in _BANKS if b != bank])
+    exposure = _EXPOSURE.get(pair, {"exposure_type": "payable", "exposure_note": "", "current_hedge_ratio": 0.5})
     return {
         "position_id": f"GIFT-{fake.random_uppercase_letter()}{fake.random_uppercase_letter()}-{fake.random_number(digits=6, fix_len=True)}",
         "entity_name": f"{bank} {fake.random_element(_ENTITY_SUFFIXES)}, GIFT City",
@@ -39,4 +63,5 @@ def make_position_metadata(pair: str, valuation_date: str = "2026-08-21") -> dic
         "valuation_date": valuation_date,
         "counterparty": f"{counterparty} {fake.random_element(_ENTITY_SUFFIXES)}",
         "trader_ref": fake.name(),
+        **exposure,
     }

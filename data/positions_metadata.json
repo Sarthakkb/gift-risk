@@ -6,7 +6,10 @@
     "currency_pair": "USD/INR",
     "valuation_date": "2026-08-21",
     "counterparty": "HDFC Bank (IFSC Branch)",
-    "trader_ref": "Jasmit Bhardwaj"
+    "trader_ref": "Jasmit Bhardwaj",
+    "exposure_type": "payable",
+    "exposure_note": "Offshore USD loan drawdown \u2014 desk owes USD at maturity",
+    "current_hedge_ratio": 0.35
   },
   "SGD/INR": {
     "position_id": "GIFT-BC-554710",
@@ -15,7 +18,10 @@
     "currency_pair": "SGD/INR",
     "valuation_date": "2026-08-21",
     "counterparty": "Kotak Mahindra Bank IBU",
-    "trader_ref": "Gautam Samra"
+    "trader_ref": "Gautam Samra",
+    "exposure_type": "receivable",
+    "exposure_note": "SGD trade & remittance receivables \u2014 desk is owed SGD",
+    "current_hedge_ratio": 0.55
   },
   "AED/INR": {
     "position_id": "GIFT-DH-761259",
@@ -24,6 +30,9 @@
     "currency_pair": "AED/INR",
     "valuation_date": "2026-08-21",
     "counterparty": "First Abu Dhabi Bank (IFSC Branch)",
-    "trader_ref": "Mekhala Bawa"
+    "trader_ref": "Mekhala Bawa",
+    "exposure_type": "payable",
+    "exposure_note": "LC-backed import payables to Gulf suppliers \u2014 desk owes AED",
+    "current_hedge_ratio": 0.2
   }
 }

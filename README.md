@@ -5,7 +5,9 @@
 A risk intelligence tool for a treasury officer at a GIFT IFSC (GIFT City, India) IBU:
 daily 95% Value-at-Risk on cross-border FX positions — classical estimate,
 quantum-verified — stressed under 10 macro scenarios, with AI-generated
-morning-report commentary.
+morning-report commentary. A second tab turns that VaR into a decision: given
+a target hedge ratio, which FX forward to trade — direction and notional —
+to get there.
 
 ## Core thesis
 
@@ -53,11 +55,29 @@ data (synthetic FX returns + Faker metadata, S3 w/ local fallback)
   → aws_services.py     S3 loading · Bedrock (Claude Opus 5) commentary
   → isolate.py          quantum compute runs in a spawned subprocess,
                         keeping native SDK code out of the UI process
-  → app.py              Streamlit dashboard (the product surface)
+  → hedge.py            target hedge ratio → required FX forward trade
+                        (direction + notional) and the resulting VaR
+  → app.py              Streamlit dashboard: Risk Analysis + Hedge Ratio tabs
 ```
 
 Both estimators target the *same* quantity — P(loss > threshold) on the same
 stressed distribution — so their resource counts are directly comparable.
+
+## Hedge Ratio tab
+
+Each position carries a synthetic exposure type (payable/receivable) and a
+current hedge ratio (existing forward cover), set alongside the Faker
+metadata. Given a target hedge ratio, `hedge.py` computes:
+
+- **Direction**: a payable hedges by *buying* the foreign currency forward
+  (locking in a purchase rate) when increasing cover, *selling* when
+  unwinding; a receivable is the mirror image.
+- **Notional**: `|target − current| × position notional`.
+- **VaR impact**: hedged VaR scales linearly as `VaR × (1 − hedge ratio)` —
+  the disclosed simplifying assumption is a same-pair forward with 1-for-1
+  effectiveness and no basis risk. Real hedge accounting additionally needs
+  forward points/cost of carry, counterparty credit limits, and
+  mark-to-market on existing forwards.
 
 ## AWS services used, and why
 
@@ -79,6 +99,9 @@ stressed distribution — so their resource counts are directly comparable.
   to historical episodes.
 - Quantum execution: **classical simulation** (Qiskit Aer, Braket
   LocalSimulator). No QPU was used.
+- Hedge book state: exposure type and current hedge ratio per position are
+  hand-set synthetic parameters (like the scenarios), not read from any real
+  forward book or treasury management system.
 
 **Real (actually measured / actually running):**
 - The IQAE algorithm itself — genuine qiskit-algorithms implementation, real

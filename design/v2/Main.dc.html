@@ -1,0 +1,552 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
+      background: oklch(0.15 0.013 250);
+      color: oklch(0.94 0.006 250);
+    }
+    a { color: oklch(0.78 0.12 195); text-decoration: none; }
+    a:hover { color: oklch(0.85 0.10 195); }
+    ::-webkit-scrollbar { width: 10px; height: 10px; }
+    ::-webkit-scrollbar-track { background: oklch(0.17 0.014 250); }
+    ::-webkit-scrollbar-thumb { background: oklch(0.30 0.02 250); border-radius: 6px; }
+    ::-webkit-scrollbar-thumb:hover { background: oklch(0.36 0.02 250); }
+    select { font-family: 'IBM Plex Sans', sans-serif; }
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    input[type="number"] { -moz-appearance: textfield; }
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.35; }
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    @keyframes rise-in {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</helmet>
+
+<div style="width:1440px; min-height:900px; background:oklch(0.15 0.013 250); padding-bottom:56px;">
+
+  <!-- ============ DISCLOSURE BANNER ============ -->
+  <div style="display:flex; align-items:center; gap:10px; padding:10px 28px; background:oklch(0.24 0.045 85); border-bottom:1px solid oklch(0.38 0.07 85);">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="oklch(0.84 0.12 85)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;">
+      <path d="M12 3.5 21 20H3z"/>
+      <line x1="12" y1="9.5" x2="12" y2="14"/>
+      <circle cx="12" cy="17" r="0.6" fill="oklch(0.84 0.12 85)" stroke="none"/>
+    </svg>
+    <div style="font-size:12.5px; line-height:1.5; color:oklch(0.86 0.06 85); font-weight:500;">
+      All positions and market data are synthetic. Quantum circuit runs on a classical simulator (Aer / Braket local). This tool demonstrates quantum algorithm efficiency, not production risk management. Not financial advice.
+    </div>
+  </div>
+
+  <!-- ============ HEADER ============ -->
+  <div style="display:flex; align-items:center; justify-content:space-between; padding:20px 28px 18px 28px; border-bottom:1px solid oklch(0.27 0.018 250);">
+    <div style="display:flex; align-items:center; gap:12px;">
+      <div style="width:34px; height:34px; border-radius:8px; background:oklch(0.22 0.02 250); border:1px solid oklch(0.32 0.03 195); display:flex; align-items:center; justify-content:center; color:{{accent}};">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+          <g stroke="currentColor" stroke-width="1.5">
+            <ellipse cx="12" cy="12" rx="9" ry="3.6"/>
+            <ellipse cx="12" cy="12" rx="9" ry="3.6" transform="rotate(60 12 12)"/>
+            <ellipse cx="12" cy="12" rx="9" ry="3.6" transform="rotate(120 12 12)"/>
+          </g>
+          <circle cx="12" cy="12" r="1.6" fill="currentColor"/>
+        </svg>
+      </div>
+      <div>
+        <div style="font-size:17px; font-weight:600; letter-spacing:-0.01em; color:oklch(0.96 0.005 250);">GIFT Risk</div>
+        <div style="font-size:11.5px; color:oklch(0.58 0.014 250); margin-top:1px;">Quantum-Accelerated Treasury VaR</div>
+      </div>
+    </div>
+    <div style="display:flex; align-items:center; gap:18px;">
+      <div style="display:flex; align-items:center; gap:7px; font-size:12px; color:oklch(0.62 0.014 250);">
+        <span style="width:7px; height:7px; border-radius:50%; background:oklch(0.72 0.15 148); animation:pulse-dot 2.2s ease-in-out infinite; display:inline-block;"></span>
+        Simulator session active
+      </div>
+      <div style="font-size:12px; color:oklch(0.58 0.014 250); font-family:'IBM Plex Mono', monospace;">GIFT City IFSC &middot; 21 Aug 2026</div>
+    </div>
+  </div>
+
+  <!-- ============ LAYOUT: SIDEBAR + CONTENT ============ -->
+  <div style="display:flex; align-items:flex-start; gap:24px; padding:24px 28px 0 28px;">
+
+    <!-- ============ CONTROL PANEL ============ -->
+    <aside style="width:296px; flex-shrink:0; background:oklch(0.19 0.015 250); border:1px solid oklch(0.28 0.018 250); border-radius:10px; padding:20px; position:sticky; top:20px;">
+
+      <div style="font-size:11px; font-weight:600; letter-spacing:0.06em; text-transform:uppercase; color:oklch(0.56 0.014 250); margin-bottom:12px;">Position</div>
+      <sc-for list="{{positions}}" as="pos" hint-placeholder-count="3">
+        <div style="{{pos.cardStyle}}" onClick="{{pos.onSelect}}">
+          <div style="{{pos.pairStyle}}">{{pos.pair}}</div>
+          <div style="font-size:11.5px; color:oklch(0.72 0.012 250); margin-top:3px; line-height:1.4;">{{pos.entity}}</div>
+          <div style="font-size:11px; color:oklch(0.54 0.014 250); margin-top:1px;">{{pos.desk}}</div>
+        </div>
+      </sc-for>
+
+      <div style="font-size:11px; font-weight:600; letter-spacing:0.06em; text-transform:uppercase; color:oklch(0.56 0.014 250); margin:20px 0 10px 0;">Stress scenario</div>
+      <div style="position:relative;">
+        <select value="{{state.scenario}}" onChange="{{handleScenarioChange}}" style="width:100%; appearance:none; -webkit-appearance:none; background:oklch(0.22 0.017 250); color:oklch(0.94 0.006 250); border:1px solid oklch(0.32 0.02 250); border-radius:7px; padding:10px 32px 10px 12px; font-size:13px; font-family:'IBM Plex Sans', sans-serif; cursor:pointer;">
+          <sc-for list="{{scenarioOptions}}" as="opt" hint-placeholder-count="10">
+            <option value="{{opt.key}}">{{opt.name}}</option>
+          </sc-for>
+        </select>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="oklch(0.6 0.014 250)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="position:absolute; right:11px; top:50%; transform:translateY(-50%); pointer-events:none;">
+          <path d="M6 9l6 6 6-6"/>
+        </svg>
+      </div>
+      <div style="font-size:11.5px; color:oklch(0.56 0.014 250); margin-top:7px; line-height:1.45; min-height:30px;">{{selectedScenarioDesc}}</div>
+
+      <div style="font-size:11px; font-weight:600; letter-spacing:0.06em; text-transform:uppercase; color:oklch(0.56 0.014 250); margin:18px 0 10px 0;">Notional (USD)</div>
+      <div style="display:flex; align-items:center; background:oklch(0.22 0.017 250); border:1px solid oklch(0.32 0.02 250); border-radius:7px; padding:0 12px;">
+        <span style="font-size:13px; color:oklch(0.58 0.014 250); font-family:'IBM Plex Mono', monospace;">$</span>
+        <input type="number" value="{{state.notionalInput}}" onChange="{{handleNotionalChange}}" style="flex:1; border:none; background:transparent; outline:none; color:oklch(0.94 0.006 250); font-family:'IBM Plex Mono', monospace; font-size:13.5px; padding:10px 8px;">
+      </div>
+
+      <div style="font-size:11px; font-weight:600; letter-spacing:0.06em; text-transform:uppercase; color:oklch(0.56 0.014 250); margin:18px 0 10px 0;">Quantum backend</div>
+      <div style="display:flex; background:oklch(0.22 0.017 250); border:1px solid oklch(0.32 0.02 250); border-radius:7px; padding:3px; gap:3px;">
+        <sc-for list="{{backends}}" as="be" hint-placeholder-count="2">
+          <div style="{{be.style}}" onClick="{{be.onSelect}}">{{be.label}}</div>
+        </sc-for>
+      </div>
+
+      <div onClick="{{runAnalysis}}" style="margin-top:22px; width:100%; text-align:center; padding:13px; border-radius:7px; background:oklch(0.95 0.006 250); color:oklch(0.16 0.014 250); font-size:13.5px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px;">
+        <sc-if value="{{state.isRunning}}" hint-placeholder-val="{{false}}">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="oklch(0.16 0.014 250)" stroke-width="2.5" stroke-linecap="round" style="animation:spin 0.8s linear infinite;">
+            <path d="M12 3a9 9 0 1 1-9 9"/>
+          </svg>
+        </sc-if>
+        {{runButtonLabel}}
+      </div>
+
+      <div style="margin-top:16px; padding-top:14px; border-top:1px solid oklch(0.26 0.018 250); font-size:11px; color:oklch(0.5 0.014 250); line-height:1.5;">
+        95% confidence &middot; 1-day horizon &middot; classical MC verified against quantum IQAE / MLAE
+      </div>
+    </aside>
+
+    <!-- ============ MAIN CONTENT ============ -->
+    <main style="flex:1; min-width:0;">
+
+      <!-- EMPTY STATE -->
+      <sc-if value="{{!hasRun}}" hint-placeholder-val="{{true}}">
+        <div style="border:1px dashed oklch(0.32 0.02 250); border-radius:10px; padding:64px 40px; text-align:center; background:oklch(0.175 0.014 250);">
+          <div style="width:44px; height:44px; border-radius:10px; background:oklch(0.22 0.02 250); border:1px solid oklch(0.32 0.03 195); display:flex; align-items:center; justify-content:center; color:{{accent}}; margin:0 auto 16px auto;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+              <g stroke="currentColor" stroke-width="1.4">
+                <ellipse cx="12" cy="12" rx="9" ry="3.6"/>
+                <ellipse cx="12" cy="12" rx="9" ry="3.6" transform="rotate(60 12 12)"/>
+                <ellipse cx="12" cy="12" rx="9" ry="3.6" transform="rotate(120 12 12)"/>
+              </g>
+              <circle cx="12" cy="12" r="1.6" fill="currentColor"/>
+            </svg>
+          </div>
+          <div style="font-size:15px; font-weight:600; color:oklch(0.9 0.006 250); margin-bottom:6px;">Configure a position and stress scenario</div>
+          <div style="font-size:13px; color:oklch(0.58 0.014 250); max-width:420px; margin:0 auto; line-height:1.55;">Choose a currency pair and macro scenario on the left, then run the analysis to see classical and quantum VaR side by side.</div>
+        </div>
+      </sc-if>
+
+      <!-- RESULTS -->
+      <sc-if value="{{hasRun}}" hint-placeholder-val="{{false}}">
+        <div style="animation:rise-in 0.35s ease-out;">
+
+          <div style="font-size:13px; color:oklch(0.6 0.014 250); margin-bottom:4px;">{{appliedScenarioName}} &middot; {{appliedPositionLabel}}</div>
+
+          <!-- STAT CARDS -->
+          <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:14px;">
+            <div style="background:oklch(0.19 0.015 250); border:1px solid oklch(0.28 0.018 250); border-radius:10px; padding:18px 20px;">
+              <div style="font-size:11px; font-weight:600; letter-spacing:0.05em; text-transform:uppercase; color:oklch(0.58 0.014 250); margin-bottom:10px;">Classical VaR &middot; 95%, 1-day</div>
+              <div style="font-family:'IBM Plex Mono', monospace; font-size:30px; font-weight:600; color:oklch(0.83 0.11 75); line-height:1;">{{classicalUsd}}</div>
+              <div style="font-size:12px; color:oklch(0.58 0.014 250); margin-top:8px; font-family:'IBM Plex Mono', monospace;">{{classicalPct}} of notional</div>
+            </div>
+            <div style="background:oklch(0.19 0.015 250); border:1px solid oklch(0.28 0.018 250); border-radius:10px; padding:18px 20px;">
+              <div style="font-size:11px; font-weight:600; letter-spacing:0.05em; text-transform:uppercase; color:oklch(0.58 0.014 250); margin-bottom:10px;">Quantum VaR &middot; 95%, 1-day</div>
+              <div style="font-family:'IBM Plex Mono', monospace; font-size:30px; font-weight:600; color:{{accent}}; line-height:1;">{{quantumUsd}}</div>
+              <div style="font-size:12px; color:oklch(0.58 0.014 250); margin-top:8px; font-family:'IBM Plex Mono', monospace;">{{quantumPct}} of notional</div>
+            </div>
+            <div style="background:oklch(0.19 0.015 250); border:1px solid oklch(0.28 0.018 250); border-radius:10px; padding:18px 20px;">
+              <div style="font-size:11px; font-weight:600; letter-spacing:0.05em; text-transform:uppercase; color:oklch(0.58 0.014 250); margin-bottom:10px;">Model agreement</div>
+              <div style="{{agreement.style}} display:flex; align-items:center; gap:8px; padding:7px 11px; border-radius:7px; width:fit-content;">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <sc-if value="{{agreement.ok}}" hint-placeholder-val="{{true}}">
+                    <circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.5 2.5L16 9.5"/>
+                  </sc-if>
+                  <sc-if value="{{!agreement.ok}}" hint-placeholder-val="{{false}}">
+                    <circle cx="12" cy="12" r="9"/><line x1="12" y1="7.5" x2="12" y2="13"/><circle cx="12" cy="16.3" r="0.6" fill="currentColor" stroke="none"/>
+                  </sc-if>
+                </svg>
+                <span style="font-size:13px; font-weight:600;">{{agreement.label}}</span>
+              </div>
+              <div style="font-size:11.5px; color:oklch(0.54 0.014 250); margin-top:10px;">{{agreement.detail}}</div>
+            </div>
+            <div style="background:oklch(0.19 0.015 250); border:1px solid oklch(0.28 0.018 250); border-radius:10px; padding:18px 20px;">
+              <div style="font-size:11px; font-weight:600; letter-spacing:0.05em; text-transform:uppercase; color:oklch(0.58 0.014 250); margin-bottom:10px;">vs. Baseline scenario</div>
+              <div style="display:flex; align-items:center; gap:6px;">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="{{delta.color}}" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+                  <sc-if value="{{delta.up}}" hint-placeholder-val="{{true}}">
+                    <path d="M12 19V5M6 11l6-6 6 6"/>
+                  </sc-if>
+                  <sc-if value="{{!delta.up}}" hint-placeholder-val="{{false}}">
+                    <path d="M12 5v14M6 13l6 6 6-6"/>
+                  </sc-if>
+                </svg>
+                <span style="font-family:'IBM Plex Mono', monospace; font-size:19px; font-weight:600; color:{{delta.color}};">{{delta.pct}}</span>
+              </div>
+              <div style="font-size:12px; color:oklch(0.58 0.014 250); margin-top:8px; font-family:'IBM Plex Mono', monospace;">{{delta.usd}}</div>
+            </div>
+          </div>
+
+          <!-- BACKEND STRAP -->
+          <div style="margin-top:12px; padding:11px 16px; background:oklch(0.175 0.016 250); border:1px solid oklch(0.27 0.018 250); border-radius:8px; display:flex; align-items:center; gap:8px; font-size:12px; color:oklch(0.62 0.014 250); font-family:'IBM Plex Mono', monospace;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="{{accent}}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="6" y="6" width="12" height="12" rx="1.5"/>
+              <path d="M9 3v3M12 3v3M15 3v3M9 18v3M12 18v3M15 18v3M3 9h3M3 12h3M3 15h3M18 9h3M18 12h3M18 15h3"/>
+            </svg>
+            <span style="color:{{accent}}; font-weight:600;">{{backendName}}</span>
+            <span style="color:oklch(0.4 0.014 250);">&middot;</span>
+            <span>{{queriesLabel}} oracle queries</span>
+            <span style="color:oklch(0.4 0.014 250);">&middot;</span>
+            <span>{{samplesLabel}} classical MC samples</span>
+          </div>
+
+          <!-- AI COMMENTARY -->
+          <div style="margin-top:20px; background:oklch(0.185 0.02 195); border:1px solid oklch(0.3 0.045 195); border-radius:10px; padding:20px;">
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="{{accent}}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5L18 18M18 6l-2.5 2.5M8.5 15.5L6 18"/>
+              </svg>
+              <span style="font-size:12px; font-weight:600; letter-spacing:0.03em; color:oklch(0.85 0.05 195);">AI-generated risk commentary &middot; Bedrock, Claude Opus 5</span>
+            </div>
+            <div style="font-size:13.5px; line-height:1.65; color:oklch(0.88 0.01 250);">{{commentary}}</div>
+            <div style="font-size:11px; color:oklch(0.56 0.03 195); margin-top:12px; font-style:italic;">Not financial advice &mdash; for internal desk reference only.</div>
+          </div>
+
+          <!-- DIVIDER -->
+          <div style="display:flex; align-items:center; gap:12px; margin:32px 0 18px 0;">
+            <div style="font-size:11.5px; font-weight:600; letter-spacing:0.07em; text-transform:uppercase; color:oklch(0.56 0.014 250); white-space:nowrap;">Supporting evidence &middot; why quantum</div>
+            <div style="flex:1; height:1px; background:oklch(0.27 0.018 250);"></div>
+          </div>
+
+          <!-- BENCHMARK CHART -->
+          <div style="background:oklch(0.19 0.015 250); border:1px solid oklch(0.28 0.018 250); border-radius:10px; padding:22px 24px;">
+            <div style="display:flex; align-items:baseline; justify-content:space-between; margin-bottom:4px;">
+              <div style="font-size:14px; font-weight:600; color:oklch(0.92 0.006 250);">Query complexity: classical Monte Carlo vs. quantum IQAE</div>
+              <div style="font-size:11.5px; color:oklch(0.52 0.014 250);">measured on this pipeline &middot; simulator execution</div>
+            </div>
+            <div style="font-size:11.5px; color:oklch(0.54 0.014 250); margin-bottom:14px;">Sample-efficiency comparison only &mdash; no wall-clock speed claim.</div>
+
+            <svg viewBox="0 0 720 320" style="width:100%; height:auto; display:block;">
+              <!-- gridlines -->
+              <line x1="60" y1="206.7" x2="700" y2="206.7" stroke="oklch(0.28 0.018 250)" stroke-dasharray="3,4"/>
+              <line x1="60" y1="140" x2="700" y2="140" stroke="oklch(0.28 0.018 250)" stroke-dasharray="3,4"/>
+              <line x1="60" y1="73.3" x2="700" y2="73.3" stroke="oklch(0.28 0.018 250)" stroke-dasharray="3,4"/>
+              <text x="52" y="210" text-anchor="end" font-family="IBM Plex Mono" font-size="11" fill="oklch(0.5 0.014 250)">10&#8308;</text>
+              <text x="52" y="143.5" text-anchor="end" font-family="IBM Plex Mono" font-size="11" fill="oklch(0.5 0.014 250)">10&#8309;</text>
+              <text x="52" y="76.8" text-anchor="end" font-family="IBM Plex Mono" font-size="11" fill="oklch(0.5 0.014 250)">10&#8310;</text>
+
+              <!-- axes -->
+              <line x1="60" y1="20" x2="60" y2="280" stroke="oklch(0.34 0.02 250)"/>
+              <line x1="60" y1="280" x2="700" y2="280" stroke="oklch(0.34 0.02 250)"/>
+
+              <!-- classical (warm) -->
+              <polyline points="60,253.3 182.8,213.5 318.6,161.3 421.3,121.6 524.1,81.3 660,28.2" fill="none" stroke="oklch(0.78 0.11 75)" stroke-width="2.25"/>
+              <!-- quantum (teal) -->
+              <polyline points="60,235.3 182.8,235.3 318.6,194.3 421.3,155.1 524.1,155.2 660,114.1" fill="none" stroke="{{accent}}" stroke-width="2.25"/>
+
+              <sc-for list="{{benchmarkPoints}}" as="bp" hint-placeholder-count="6">
+                <circle cx="{{bp.cx}}" cy="{{bp.cyClassical}}" r="3.5" fill="oklch(0.78 0.11 75)"/>
+                <circle cx="{{bp.cx}}" cy="{{bp.cyQuantum}}" r="3.5" fill="{{accent}}"/>
+                <text x="{{bp.cx}}" y="{{bp.labelY}}" text-anchor="middle" font-family="IBM Plex Mono" font-size="11" font-weight="600" fill="oklch(0.62 0.014 250)">{{bp.speedup}}</text>
+                <text x="{{bp.cx}}" y="298" text-anchor="middle" font-family="IBM Plex Mono" font-size="10.5" fill="oklch(0.5 0.014 250)">{{bp.epsLabel}}</text>
+              </sc-for>
+
+              <text x="380" y="316" text-anchor="middle" font-family="IBM Plex Sans" font-size="11.5" fill="oklch(0.54 0.014 250)">target error &epsilon; (tighter &#8594;)</text>
+            </svg>
+
+            <div style="display:flex; align-items:center; gap:24px; margin-top:6px; padding-top:14px; border-top:1px solid oklch(0.26 0.018 250);">
+              <div style="display:flex; align-items:center; gap:7px; font-size:12px; color:oklch(0.68 0.012 250);">
+                <span style="width:14px; height:2.5px; background:oklch(0.78 0.11 75); display:inline-block; border-radius:2px;"></span> Classical Monte Carlo (measured samples)
+              </div>
+              <div style="display:flex; align-items:center; gap:7px; font-size:12px; color:oklch(0.68 0.012 250);">
+                <span style="width:14px; height:2.5px; background:{{accent}}; display:inline-block; border-radius:2px;"></span> Quantum IQAE (measured oracle queries)
+              </div>
+              <div style="margin-left:auto; font-size:12px; color:oklch(0.56 0.014 250);">up to <span style="color:{{accent}}; font-weight:600; font-family:'IBM Plex Mono', monospace;">19.4&times;</span> fewer queries at &epsilon;=10&#8315;&#8308;</div>
+            </div>
+          </div>
+
+          <!-- SCENARIO TABLE + DISTRIBUTION -->
+          <div style="display:grid; grid-template-columns:1.7fr 1fr; gap:16px; margin-top:16px;">
+
+            <div style="background:oklch(0.19 0.015 250); border:1px solid oklch(0.28 0.018 250); border-radius:10px; padding:18px 20px;">
+              <div style="font-size:13.5px; font-weight:600; color:oklch(0.9 0.006 250); margin-bottom:12px;">All scenarios &mdash; {{appliedPositionPair}}</div>
+              <div style="display:grid; grid-template-columns:2.2fr 1fr 1fr 0.9fr 0.9fr; gap:4px 8px; font-size:11px; font-weight:600; letter-spacing:0.03em; text-transform:uppercase; color:oklch(0.54 0.014 250); padding-bottom:8px; border-bottom:1px solid oklch(0.27 0.018 250);">
+                <div>Scenario</div><div style="text-align:right;">Classical</div><div style="text-align:right;">Quantum</div><div style="text-align:right;">MC n</div><div style="text-align:right;">QAE q</div>
+              </div>
+              <sc-for list="{{scenarioRows}}" as="row" hint-placeholder-count="10">
+                <div style="{{row.rowStyle}} display:grid; grid-template-columns:2.2fr 1fr 1fr 0.9fr 0.9fr; gap:4px 8px; padding:8px 6px; border-radius:5px; font-size:12.5px;">
+                  <div style="color:oklch(0.85 0.008 250); font-weight:500;">{{row.name}}</div>
+                  <div style="text-align:right; font-family:'IBM Plex Mono', monospace; color:oklch(0.78 0.11 75);">{{row.classical}}</div>
+                  <div style="text-align:right; font-family:'IBM Plex Mono', monospace; color:{{accent}};">{{row.quantum}}</div>
+                  <div style="text-align:right; font-family:'IBM Plex Mono', monospace; color:oklch(0.58 0.014 250);">{{row.mc}}</div>
+                  <div style="text-align:right; font-family:'IBM Plex Mono', monospace; color:oklch(0.58 0.014 250);">{{row.qaeq}}</div>
+                </div>
+              </sc-for>
+            </div>
+
+            <div style="background:oklch(0.19 0.015 250); border:1px solid oklch(0.28 0.018 250); border-radius:10px; padding:18px 20px;">
+              <div style="font-size:13.5px; font-weight:600; color:oklch(0.9 0.006 250); margin-bottom:3px;">Stressed loss distribution</div>
+              <div style="font-size:11.5px; color:oklch(0.54 0.014 250); margin-bottom:16px;">8-bucket encoding &mdash; {{distTypeLabel}}</div>
+              <div style="display:flex; align-items:flex-end; gap:6px; height:150px; position:relative; border-left:1px solid oklch(0.27 0.018 250); border-bottom:1px solid oklch(0.27 0.018 250); padding-left:4px;">
+                <sc-for list="{{distBars}}" as="bar" hint-placeholder-count="8">
+                  <div style="{{bar.style}} flex:1; border-radius:3px 3px 0 0;"></div>
+                </sc-for>
+                <div style="position:absolute; left:78%; top:0; bottom:0; width:0; border-left:1.5px dashed oklch(0.55 0.014 250);"></div>
+              </div>
+              <div style="display:flex; justify-content:space-between; margin-top:6px;">
+                <span style="font-size:10.5px; color:oklch(0.5 0.014 250);">low loss</span>
+                <span style="font-size:10.5px; color:oklch(0.5 0.014 250);">high loss</span>
+              </div>
+              <div style="font-size:11px; color:oklch(0.56 0.014 250); margin-top:10px; padding-top:10px; border-top:1px solid oklch(0.26 0.018 250);">Dashed line marks the 95% VaR cutoff bucket &mdash; exactly what the state-preparation circuit encodes.</div>
+            </div>
+          </div>
+
+        </div>
+      </sc-if>
+
+      <div style="margin-top:28px; font-size:11.5px; color:oklch(0.46 0.014 250); text-align:center; padding-top:16px; border-top:1px solid oklch(0.24 0.016 250);">
+        GIFT Risk is a hackathon prototype (Track 2 &mdash; Quantum Tech in Financial Services). Query-complexity comparison only; no wall-clock speed claim.
+      </div>
+    </main>
+  </div>
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{"accent":{"editor":"color","default":"#45D6C8","options":["#45D6C8","#5AC8FA","#8B7CF6","#38BDF8"]}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.PAIRS = [
+      { pair: "USD/INR", entity: "Standard Chartered IBU, GIFT City", desk: "Cross-Border Treasury Desk — USD" },
+      { pair: "SGD/INR", entity: "DBS Bank IFSC Banking Unit, GIFT City", desk: "Asia FX & Remittances Desk" },
+      { pair: "AED/INR", entity: "Axis Bank (IFSC Branch), GIFT City", desk: "Gulf Corridor Trade Finance Desk" },
+    ];
+
+    this.SCENARIOS = [
+      { key: "baseline", name: "Baseline: Normal Market", desc: "Standard trading conditions — no macro stress.", dist: "normal",
+        narrative: "Standard GIFT IFSC trading conditions. No macro stress. VaR reflects baseline FX volatility." },
+      { key: "fed_rate_hike", name: "Fed Rate Hike", desc: "Unexpected Fed tightening — dollar rallies, INR depreciates.", dist: "skewed",
+        narrative: "Fed tightens unexpectedly. Dollar rallies, INR depreciates. Capital outflows from GIFT City IBUs toward USD assets accelerate." },
+      { key: "oil_price_shock", name: "Oil Price Shock", desc: "Brent +30% — import bill widens deficit, INR under pressure.", dist: "fat_tail",
+        narrative: "Brent crude spikes 30%. India, importing 85% of oil needs, faces higher import costs. Current account deficit widens, INR depreciates." },
+      { key: "gold_flight", name: "Gold Flight-to-Safety", desc: "Global risk-off — flows into gold and USD, EM outflows.", dist: "fat_tail",
+        narrative: "Global risk-off episode. Capital flows into gold and USD. EM positions including GIFT City IBU books see outflows." },
+      { key: "us_jobs_miss", name: "US Jobs Report Miss", desc: "NFP shock — recession fears, sharp EM sell-off, rapid onset.", dist: "fat_tail",
+        narrative: "Non-Farm Payrolls miss consensus badly. Recession fears spike. EM currencies sell off sharply. Rapid onset — catches unhedged IBU treasury desks." },
+      { key: "gift_liquidity", name: "GIFT City Liquidity Crunch", desc: "IFSC-specific settlement bottleneck — spreads blow out.", dist: "bimodal",
+        narrative: "GIFT IFSC-specific stress: simultaneous IBU liquidity demands create settlement bottlenecks. Bid-ask spreads blow out, positions are harder to unwind." },
+      { key: "china_slowdown", name: "China Slowdown", desc: "Chinese GDP miss — Asia EM contagion via trade channels.", dist: "skewed",
+        narrative: "Chinese GDP miss triggers Asia EM sell-off. INR, SGD, AED all under pressure via trade and capital channel contagion." },
+      { key: "india_downgrade", name: "India Sovereign Downgrade", desc: "Rating downgrade — capital flight, funding costs spike.", dist: "fat_tail",
+        narrative: "Rating agency downgrades India sovereign debt. Capital flight accelerates, INR depreciates sharply, GIFT City IBU funding costs spike." },
+      { key: "equity_crash", name: "Global Equity Crash (SPY -20%)", desc: "Correlated risk-asset sell-off — diversification fails.", dist: "fat_tail",
+        narrative: "S&P 500 drops 20% rapidly. Risk assets sell off simultaneously — EM FX, credit, equities reprice lower together. Correlations spike to 1." },
+      { key: "crypto_contagion", name: "Crypto Contagion (BTC -50%)", desc: "Stablecoin redemptions tighten USD liquidity — EM pressure.", dist: "skewed",
+        narrative: "Bitcoin drops 50% in 48 hours. Stablecoin redemptions create USD demand, tightening dollar liquidity. EM currencies including INR face pressure." },
+    ];
+
+    this.DATA = {
+      "USD/INR": { baseline:[0.543,0.573], fed_rate_hike:[1.106,1.171], oil_price_shock:[1.542,1.690], gold_flight:[0.947,1.059], us_jobs_miss:[1.913,1.879], gift_liquidity:[3.622,3.714], china_slowdown:[1.201,1.265], india_downgrade:[1.985,2.058], equity_crash:[2.786,2.781], crypto_contagion:[1.020,1.079] },
+      "SGD/INR": { baseline:[0.606,0.630], fed_rate_hike:[1.212,1.269], oil_price_shock:[1.784,1.805], gold_flight:[1.082,1.154], us_jobs_miss:[1.941,1.982], gift_liquidity:[4.229,4.262], china_slowdown:[1.315,1.377], india_downgrade:[2.142,2.181], equity_crash:[3.018,3.054], crypto_contagion:[1.119,1.169] },
+      "AED/INR": { baseline:[0.538,0.552], fed_rate_hike:[1.096,1.110], oil_price_shock:[1.574,1.646], gold_flight:[0.959,1.041], us_jobs_miss:[1.635,1.694], gift_liquidity:[3.814,3.830], china_slowdown:[1.190,1.205], india_downgrade:[1.914,1.980], equity_crash:[2.699,2.654], crypto_contagion:[1.010,1.026] },
+    };
+
+    this.QUERIES_AER = { baseline:3840, fed_rate_hike:3008, oil_price_shock:3904, gold_flight:4224, us_jobs_miss:3136, gift_liquidity:2368, china_slowdown:3264, india_downgrade:5760, equity_crash:3456, crypto_contagion:3328 };
+    this.QUERIES_BRAKET = { baseline:6720, fed_rate_hike:5264, oil_price_shock:6832, gold_flight:7392, us_jobs_miss:5488, gift_liquidity:4144, china_slowdown:5712, india_downgrade:10080, equity_crash:6048, crypto_contagion:5824 };
+    this.MC_SAMPLES = { baseline:2000, fed_rate_hike:2000, oil_price_shock:2000, gold_flight:2000, us_jobs_miss:2000, gift_liquidity:2000, china_slowdown:2000, india_downgrade:2000, equity_crash:2000, crypto_contagion:2000 };
+
+    this.DIST_SHAPES = {
+      normal:   [0.03,0.09,0.20,0.30,0.22,0.11,0.04,0.01],
+      skewed:   [0.02,0.06,0.14,0.24,0.26,0.16,0.09,0.03],
+      fat_tail: [0.05,0.08,0.13,0.19,0.20,0.15,0.12,0.08],
+      bimodal:  [0.10,0.16,0.10,0.06,0.08,0.14,0.20,0.16],
+    };
+
+    this.BENCH_X = [60, 182.8, 318.6, 421.3, 524.1, 660];
+    this.BENCH_YC = [253.3, 213.5, 161.3, 121.6, 81.3, 28.2];
+    this.BENCH_YQ = [235.3, 235.3, 194.3, 155.1, 155.2, 114.1];
+    this.BENCH_SPEEDUP = ["1×","2×","3×","3×","13×","19×"];
+    this.BENCH_EPS = ["5e-3","2.5e-3","1e-3","5e-4","2.5e-4","1e-4"];
+
+    this.state = {
+      position: "USD/INR",
+      scenario: "baseline",
+      backend: "aer",
+      notionalInput: 10000000,
+      isRunning: false,
+      hasRun: false,
+      appliedPosition: "USD/INR",
+      appliedScenario: "baseline",
+      appliedBackend: "aer",
+      appliedNotional: 10000000,
+    };
+  }
+
+  fmtUsd(n) {
+    return "$" + Math.round(n).toLocaleString("en-US");
+  }
+
+  runAnalysis() {
+    this.setState({ isRunning: true });
+    setTimeout(() => {
+      this.setState({
+        isRunning: false,
+        hasRun: true,
+        appliedPosition: this.state.position,
+        appliedScenario: this.state.scenario,
+        appliedBackend: this.state.backend,
+        appliedNotional: this.state.notionalInput || 10000000,
+      });
+    }, 550);
+  }
+
+  renderVals() {
+    const s = this.state;
+
+    const positions = this.PAIRS.map(p => {
+      const sel = p.pair === s.position;
+      return {
+        pair: p.pair, entity: p.entity, desk: p.desk,
+        cardStyle: `padding:13px 14px; border-radius:8px; margin-bottom:8px; cursor:pointer; border:1px solid ${sel ? "oklch(0.5 0.1 195)" : "oklch(0.28 0.018 250)"}; background:${sel ? "oklch(0.22 0.03 195)" : "oklch(0.175 0.016 250)"};`,
+        pairStyle: `font-family:'IBM Plex Mono', monospace; font-size:14px; font-weight:600; color:${sel ? "#45D6C8" : "oklch(0.85 0.008 250)"};`,
+        onSelect: () => this.setState({ position: p.pair }),
+      };
+    });
+
+    const scenarioOptions = this.SCENARIOS.map(sc => ({ key: sc.key, name: sc.name }));
+    const selScenario = this.SCENARIOS.find(x => x.key === s.scenario) || this.SCENARIOS[0];
+
+    const backends = [
+      { value: "aer", label: "Qiskit Aer" },
+      { value: "braket", label: "Braket local" },
+    ].map(b => {
+      const sel = b.value === s.backend;
+      return {
+        label: b.label,
+        style: `flex:1; text-align:center; padding:8px 6px; border-radius:5px; font-size:12.5px; font-weight:500; cursor:pointer; color:${sel ? "oklch(0.16 0.014 250)" : "oklch(0.68 0.012 250)"}; background:${sel ? "oklch(0.9 0.006 250)" : "transparent"};`,
+        onSelect: () => this.setState({ backend: b.value }),
+      };
+    });
+
+    // ---- applied (post Run Analysis) derived values ----
+    const pair = s.appliedPosition;
+    const scKey = s.appliedScenario;
+    const scObj = this.SCENARIOS.find(x => x.key === scKey) || this.SCENARIOS[0];
+    const [classicalPct, quantumPct] = this.DATA[pair][scKey];
+    const notional = s.appliedNotional;
+    const classicalUsdN = (classicalPct / 100) * notional;
+    const quantumUsdN = (quantumPct / 100) * notional;
+    const diff = Math.abs(quantumPct - classicalPct) / classicalPct;
+    const agreeOk = diff <= 0.15;
+
+    const baselinePct = this.DATA[pair]["baseline"][0];
+    const deltaUsd = classicalUsdN - (baselinePct / 100) * notional;
+    const deltaPct = classicalPct / baselinePct - 1;
+
+    const backendName = s.appliedBackend === "braket" ? "Braket LocalSimulator (MLAE)" : "Qiskit Aer (IQAE)";
+    const queries = s.appliedBackend === "braket" ? this.QUERIES_BRAKET[scKey] : this.QUERIES_AER[scKey];
+    const mcSamples = this.MC_SAMPLES[scKey];
+
+    const pairMeta = this.PAIRS.find(p => p.pair === pair);
+    const agreeText = agreeOk ? "agree within tolerance" : "show divergence — treat this estimate with caution";
+    const commentary = `${scObj.narrative} Under this scenario, the ${pair} book (${pairMeta.desk}) shows a 95% one-day VaR of ${classicalPct.toFixed(3)}% of notional (~${this.fmtUsd(classicalUsdN)}). Classical Monte Carlo and quantum amplitude estimation ${agreeText}, with QAE reaching this precision using ${queries.toLocaleString()} oracle queries versus ${mcSamples.toLocaleString()} classical samples.`;
+
+    const scenarioRows = this.SCENARIOS.map(sc => {
+      const [c, q] = this.DATA[pair][sc.key];
+      const isSel = sc.key === scKey;
+      return {
+        name: sc.name,
+        classical: c.toFixed(3) + "%",
+        quantum: q.toFixed(3) + "%",
+        mc: this.MC_SAMPLES[sc.key].toLocaleString(),
+        qaeq: this.QUERIES_AER[sc.key].toLocaleString(),
+        rowStyle: isSel ? "background:oklch(0.24 0.035 195); border:1px solid oklch(0.4 0.06 195);" : "border:1px solid transparent;",
+      };
+    });
+
+    const shape = this.DIST_SHAPES[scObj.dist];
+    const maxBar = Math.max(...shape);
+    const distBars = shape.map((v, i) => ({
+      style: `height:${Math.round((v / maxBar) * 130)}px; background:${i >= 5 ? "oklch(0.68 0.15 25)" : "oklch(0.55 0.09 75)"};`,
+    }));
+    const distTypeLabel = { normal: "normal", skewed: "skewed", fat_tail: "fat-tailed", bimodal: "bimodal" }[scObj.dist];
+
+    const benchmarkPoints = this.BENCH_X.map((cx, i) => ({
+      cx, cyClassical: this.BENCH_YC[i], cyQuantum: this.BENCH_YQ[i],
+      labelY: Math.min(this.BENCH_YC[i], this.BENCH_YQ[i]) - 10,
+      speedup: this.BENCH_SPEEDUP[i], epsLabel: this.BENCH_EPS[i],
+    }));
+
+    return {
+      state: s,
+      accent: this.props.accent ?? "#45D6C8",
+      positions,
+      scenarioOptions,
+      selectedScenarioDesc: selScenario.desc,
+      backends,
+      handleScenarioChange: (e) => this.setState({ scenario: e.target.value }),
+      handleNotionalChange: (e) => this.setState({ notionalInput: Number(e.target.value) || 0 }),
+      runAnalysis: () => this.runAnalysis(),
+      runButtonLabel: s.isRunning ? "Running analysis…" : "Run Analysis",
+      hasRun: s.hasRun,
+
+      appliedScenarioName: scObj.name,
+      appliedPositionLabel: `${pair} — ${pairMeta.desk}`,
+      appliedPositionPair: pair,
+
+      classicalUsd: this.fmtUsd(classicalUsdN),
+      classicalPct: classicalPct.toFixed(3) + "%",
+      quantumUsd: this.fmtUsd(quantumUsdN),
+      quantumPct: quantumPct.toFixed(3) + "%",
+
+      agreement: {
+        ok: agreeOk,
+        label: agreeOk ? "Agree" : "Diverging",
+        style: agreeOk
+          ? "background:oklch(0.24 0.06 148); color:oklch(0.82 0.14 148);"
+          : "background:oklch(0.26 0.06 25); color:oklch(0.78 0.15 25);",
+        detail: agreeOk ? `diff ${(diff * 100).toFixed(1)}% ≤ 15% tolerance` : `diff ${(diff * 100).toFixed(1)}% exceeds 15% tolerance`,
+      },
+
+      delta: {
+        up: deltaPct >= 0,
+        pct: (deltaPct >= 0 ? "+" : "") + (deltaPct * 100).toFixed(1) + "%",
+        usd: (deltaUsd >= 0 ? "+" : "−") + this.fmtUsd(Math.abs(deltaUsd)).replace("$", "$"),
+        color: deltaPct > 0.001 ? "oklch(0.72 0.16 25)" : (deltaPct < -0.001 ? "oklch(0.72 0.14 148)" : "oklch(0.6 0.014 250)"),
+      },
+
+      backendName,
+      queriesLabel: queries.toLocaleString(),
+      samplesLabel: mcSamples.toLocaleString(),
+      commentary,
+
+      scenarioRows,
+      distBars,
+      distTypeLabel,
+      benchmarkPoints,
+    };
+  }
+}
+</script>
+</body>
+</html>

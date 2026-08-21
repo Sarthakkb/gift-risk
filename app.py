@@ -3,7 +3,9 @@
 Primary product interface for a treasury risk officer at a GIFT IFSC IBU:
 position -> today's VaR (classical, quantum-verified) -> stress scenarios ->
 AI morning-report commentary. The QAE-vs-MC benchmark sits below as
-supporting evidence, not as the headline.
+supporting evidence, not as the headline. A second tab, Hedge Ratio, turns
+that VaR into a decision: given a target hedge ratio, what FX forward to
+trade (direction + notional) to get there — see src/hedge.py.
 
 Run:  streamlit run app.py
 """
@@ -16,6 +18,7 @@ from src.aws_services import generate_risk_commentary, load_metadata, load_posit
 from src.benchmark import plot_benchmark, run_benchmark
 from src.classical_var import monte_carlo_var
 from src.compute import scenario_table_rows
+from src.hedge import compute_hedge_trade
 from src.isolate import run_isolated
 from src.quantum_var import discretize, quantum_var
 from src.scenarios import SCENARIOS, apply_scenario
@@ -131,104 +134,189 @@ base_var = _baseline_var(pair)
 delta_abs = (mc.var_estimate - base_var) * notional
 delta_pct = (mc.var_estimate / base_var - 1) if base_var else 0.0
 
-st.subheader(f"{sc['name']} — {pair}")
-c1, c2, c3, c4 = st.columns(4)
-c1.metric(
-    "Classical VaR (95%, 1-day)",
-    f"${mc.var_estimate * notional:,.0f}",
-    f"{mc.var_estimate:.3%} of notional",
-    delta_color="off",
-)
-c2.metric(
-    "Quantum VaR (95%, 1-day)",
-    f"${q_var * notional:,.0f}",
-    f"{q_var:.3%} of notional",
-    delta_color="off",
-)
-c3.metric(
-    "vs. Baseline scenario",
-    f"${delta_abs:+,.0f}",
-    f"{delta_pct:+.1%}",
-    delta_color="inverse",
-)
-if agree:
-    c4.success(f"✓ Agree within tolerance\n\n(diff {rel_diff:.1%} ≤ {AGREEMENT_TOL:.0%})")
-else:
-    c4.warning(
-        f"⚠ Diverging: diff {rel_diff:.1%} > {AGREEMENT_TOL:.0%} — "
-        "8-bucket discretisation is too coarse for this tail shape"
+tab_risk, tab_hedge = st.tabs(["Risk Analysis", "Hedge Ratio"])
+
+with tab_risk:
+    st.subheader(f"{sc['name']} — {pair}")
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric(
+        "Classical VaR (95%, 1-day)",
+        f"${mc.var_estimate * notional:,.0f}",
+        f"{mc.var_estimate:.3%} of notional",
+        delta_color="off",
     )
-
-st.caption(
-    f"Quantum backend: **{q_backend}** · oracle queries: {q_queries:,} · "
-    f"MC samples: {mc.samples_to_converge:,} · data source: **{data_source}**"
-    + (" (S3)" if data_source == "s3" else " (local fallback)")
-)
-
-# ---------------------------------------------------------- AI commentary
-st.subheader("Morning risk commentary")
-with st.spinner("Generating commentary…"):
-    speedup_now = mc.samples_to_converge / max(q_queries, 1)
-    commentary, comm_source = generate_risk_commentary(
-        meta["entity_name"], pair, sc["name"], sc["narrative"],
-        mc.var_estimate, f"${mc.var_estimate * notional:,.0f}",
-        agree, max(speedup_now, 1.0),
+    c2.metric(
+        "Quantum VaR (95%, 1-day)",
+        f"${q_var * notional:,.0f}",
+        f"{q_var:.3%} of notional",
+        delta_color="off",
     )
-label = (
-    "AI-generated risk commentary (Bedrock · Claude Opus 5) — not financial advice"
-    if comm_source == "bedrock"
-    else "Offline template commentary (Bedrock unavailable) — not financial advice"
-)
-st.info(f"**{label}**\n\n{commentary}")
-
-st.divider()
-
-# ------------------------------------------------ supporting evidence panel
-st.subheader("Supporting evidence: why quantum")
-st.caption(
-    "Query complexity of Quantum Amplitude Estimation vs. classical Monte "
-    "Carlo — measured counts on this position/scenario. Both run on classical "
-    "simulators; the advantage shown is algorithmic sample efficiency "
-    "(O(1/ε) vs. O(1/ε²)), never wall-clock speed."
-)
-
-bench = _benchmark(pair, scenario_key)
-col_a, col_b = st.columns([3, 1])
-with col_a:
-    st.pyplot(plot_benchmark(bench))
-with col_b:
-    eps_choice = st.selectbox(
-        "Target error ε", bench["epsilon"].tolist(),
-        index=len(bench) - 1, format_func=lambda e: f"{e:g}",
+    c3.metric(
+        "vs. Baseline scenario",
+        f"${delta_abs:+,.0f}",
+        f"{delta_pct:+.1%}",
+        delta_color="inverse",
     )
-    row = bench[bench["epsilon"] == eps_choice].iloc[0]
-    st.metric("Speedup at ε", f"{row['speedup']:.1f}×")
+    if agree:
+        c4.success(f"✓ Agree within tolerance\n\n(diff {rel_diff:.1%} ≤ {AGREEMENT_TOL:.0%})")
+    else:
+        c4.warning(
+            f"⚠ Diverging: diff {rel_diff:.1%} > {AGREEMENT_TOL:.0%} — "
+            "8-bucket discretisation is too coarse for this tail shape"
+        )
+
     st.caption(
-        f"classical: {int(row['classical_samples']):,} samples  \n"
-        f"quantum: {int(row['quantum_queries']):,} queries"
+        f"Quantum backend: **{q_backend}** · oracle queries: {q_queries:,} · "
+        f"MC samples: {mc.samples_to_converge:,} · data source: **{data_source}**"
+        + (" (S3)" if data_source == "s3" else " (local fallback)")
     )
 
-st.subheader("All scenarios — stress summary")
-table = _scenario_table(pair)
-st.dataframe(table, use_container_width=True, hide_index=True)
-st.caption(
-    f"MC samples measured at ε=0.005; QAE queries at ε=0.01 (production run "
-    f"settings). Like-for-like query advantage at matched ε is shown in the "
-    f"benchmark panel above — {bench.iloc[-1]['speedup']:.1f}× at ε=1e-4 on "
-    "this position/scenario."
-)
+    # ------------------------------------------------------ AI commentary
+    st.subheader("Morning risk commentary")
+    with st.spinner("Generating commentary…"):
+        speedup_now = mc.samples_to_converge / max(q_queries, 1)
+        commentary, comm_source = generate_risk_commentary(
+            meta["entity_name"], pair, sc["name"], sc["narrative"],
+            mc.var_estimate, f"${mc.var_estimate * notional:,.0f}",
+            agree, max(speedup_now, 1.0),
+        )
+    label = (
+        "AI-generated risk commentary (Bedrock · Claude Opus 5) — not financial advice"
+        if comm_source == "bedrock"
+        else "Offline template commentary (Bedrock unavailable) — not financial advice"
+    )
+    st.info(f"**{label}**\n\n{commentary}")
 
-st.subheader("Stressed return distribution")
-probs, edges = discretize(stressed)
-hist_df = pd.DataFrame(
-    {
-        "loss bucket": [f"{edges[i]:.3%} – {edges[i+1]:.3%}" for i in range(len(probs))],
-        "probability": probs,
-    }
-)
-st.bar_chart(hist_df, x="loss bucket", y="probability")
-st.caption(
-    f"8-bucket discretisation of the scenario-stressed loss distribution — "
-    f"exactly what the quantum state-preparation circuit encodes. "
-    f"Distribution type: {sc['distribution_type']}."
-)
+    st.divider()
+
+    # ------------------------------------------------ supporting evidence panel
+    st.subheader("Supporting evidence: why quantum")
+    st.caption(
+        "Query complexity of Quantum Amplitude Estimation vs. classical Monte "
+        "Carlo — measured counts on this position/scenario. Both run on classical "
+        "simulators; the advantage shown is algorithmic sample efficiency "
+        "(O(1/ε) vs. O(1/ε²)), never wall-clock speed."
+    )
+
+    bench = _benchmark(pair, scenario_key)
+    col_a, col_b = st.columns([3, 1])
+    with col_a:
+        st.pyplot(plot_benchmark(bench))
+    with col_b:
+        eps_choice = st.selectbox(
+            "Target error ε", bench["epsilon"].tolist(),
+            index=len(bench) - 1, format_func=lambda e: f"{e:g}",
+        )
+        row = bench[bench["epsilon"] == eps_choice].iloc[0]
+        st.metric("Speedup at ε", f"{row['speedup']:.1f}×")
+        st.caption(
+            f"classical: {int(row['classical_samples']):,} samples  \n"
+            f"quantum: {int(row['quantum_queries']):,} queries"
+        )
+
+    st.subheader("All scenarios — stress summary")
+    table = _scenario_table(pair)
+    st.dataframe(table, use_container_width=True, hide_index=True)
+    st.caption(
+        f"MC samples measured at ε=0.005; QAE queries at ε=0.01 (production run "
+        f"settings). Like-for-like query advantage at matched ε is shown in the "
+        f"benchmark panel above — {bench.iloc[-1]['speedup']:.1f}× at ε=1e-4 on "
+        "this position/scenario."
+    )
+
+    st.subheader("Stressed return distribution")
+    probs, edges = discretize(stressed)
+    hist_df = pd.DataFrame(
+        {
+            "loss bucket": [f"{edges[i]:.3%} – {edges[i+1]:.3%}" for i in range(len(probs))],
+            "probability": probs,
+        }
+    )
+    st.bar_chart(hist_df, x="loss bucket", y="probability")
+    st.caption(
+        f"8-bucket discretisation of the scenario-stressed loss distribution — "
+        f"exactly what the quantum state-preparation circuit encodes. "
+        f"Distribution type: {sc['distribution_type']}."
+    )
+
+# ================================================================= HEDGE TAB
+with tab_hedge:
+    exposure_type = meta.get("exposure_type", "payable")
+    current_ratio = float(meta.get("current_hedge_ratio", 0.5))
+
+    st.subheader(f"Hedge Ratio — {pair}")
+    st.caption(
+        f"{meta.get('exposure_note', '')} · scenario: **{sc['name']}** · "
+        f"unhedged VaR shown is the classical 95% one-day VaR from the Risk "
+        f"Analysis tab for this position and scenario."
+    )
+
+    col_slider, col_current = st.columns([2, 1])
+    with col_slider:
+        target_pct = st.slider(
+            "Target hedge ratio",
+            min_value=0, max_value=100,
+            value=int(round(current_ratio * 100)),
+            step=5, format="%d%%",
+            help="Fraction of notional you want covered by FX forwards.",
+        )
+    with col_current:
+        st.metric("Current hedge ratio", f"{current_ratio:.0%}")
+        st.caption("From existing forward cover on this book (synthetic).")
+
+    target_ratio = target_pct / 100.0
+    trade = compute_hedge_trade(
+        unhedged_var_pct=mc.var_estimate,
+        notional=notional,
+        current_ratio=current_ratio,
+        target_ratio=target_ratio,
+        exposure_type=exposure_type,
+        pair=pair,
+    )
+
+    st.divider()
+
+    # ------------------------------------------------------ required trade
+    verb = "Add to hedge" if trade.is_increase else "Unwind hedge"
+    if trade.trade_notional < 1:
+        st.info("Target hedge ratio matches the current ratio — no trade required.")
+    else:
+        st.markdown(
+            f"### Required trade: **{trade.trade_action} {trade.trade_currency} "
+            f"{trade.trade_notional:,.0f}** notional"
+        )
+        st.caption(
+            f"{trade.trade_instrument} · {verb} to move from "
+            f"{current_ratio:.0%} → {target_ratio:.0%} hedge ratio"
+        )
+
+    hc1, hc2, hc3 = st.columns(3)
+    hc1.metric("Unhedged VaR (0% hedge)", f"${trade.unhedged_var * notional:,.0f}")
+    hc2.metric(
+        f"Hedged VaR @ current ({current_ratio:.0%})",
+        f"${trade.current_hedged_var * notional:,.0f}",
+    )
+    hc3.metric(
+        f"Hedged VaR @ target ({target_ratio:.0%})",
+        f"${trade.target_hedged_var * notional:,.0f}",
+        f"{-trade.var_reduction * notional:,.0f} vs. current",
+        delta_color="inverse",
+    )
+
+    st.subheader("VaR by hedge ratio")
+    ratios = sorted({0.0, 0.25, 0.5, 0.75, 1.0, current_ratio, target_ratio})
+    curve_df = pd.DataFrame(
+        {
+            "hedge ratio": [f"{r:.0%}" for r in ratios],
+            "VaR ($)": [mc.var_estimate * (1 - r) * notional for r in ratios],
+        }
+    )
+    st.bar_chart(curve_df, x="hedge ratio", y="VaR ($)")
+
+    st.caption(
+        "Assumes a same-pair forward hedge (1-for-1 effectiveness, no basis "
+        "risk): hedged VaR scales linearly as VaR × (1 − hedge ratio). Real "
+        "hedge accounting additionally needs forward points / cost of carry, "
+        "counterparty credit limits, and mark-to-market on existing forwards — "
+        "out of scope for this prototype."
+    )
