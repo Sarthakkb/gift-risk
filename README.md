@@ -51,6 +51,8 @@ data (synthetic FX returns + Faker metadata, S3 w/ local fallback)
   → braket_var.py       parallel Braket-native MLAE backend (LocalSimulator)
   → benchmark.py        measured samples vs. oracle queries across ε sweep
   → aws_services.py     S3 loading · Bedrock (Claude Opus 5) commentary
+  → isolate.py          quantum compute runs in a spawned subprocess,
+                        keeping native SDK code out of the UI process
   → app.py              Streamlit dashboard (the product surface)
 ```
 

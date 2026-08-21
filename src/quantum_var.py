@@ -21,10 +21,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import numpy as np
-from qiskit import QuantumCircuit, transpile
-from qiskit.circuit.library import StatePreparation
-from qiskit_aer.primitives import SamplerV2 as AerSampler
-from qiskit_algorithms import EstimationProblem, IterativeAmplitudeEstimation
+
+# NOTE: qiskit imports are deferred into the functions that need them.
+# Importing/using qiskit's Rust extensions inside Streamlit ScriptRunner
+# threads can SIGSEGV on macOS; the app calls these functions through
+# src.isolate.run_isolated (a spawned subprocess), and lazy imports keep
+# `from src.quantum_var import discretize` safe in the UI process.
 
 CONFIDENCE = 0.95
 DEFAULT_NUM_QUBITS = 3  # 8 buckets
@@ -56,13 +58,17 @@ def discretize(returns: np.ndarray, num_qubits: int = DEFAULT_NUM_QUBITS):
     return probs, edges
 
 
-def build_problem(probs: np.ndarray, threshold_idx: int) -> EstimationProblem:
+def build_problem(probs: np.ndarray, threshold_idx: int):
     """State-prep circuit + objective marking buckets >= threshold_idx.
 
     The comparator is implemented at the amplitude level: an extra objective
     qubit is rotated to |1> exactly for basis states representing losses at
     or beyond the threshold bucket. P(objective=1) = sum_{i>=t} p_i.
     """
+    from qiskit import QuantumCircuit, transpile
+    from qiskit.circuit.library import StatePreparation
+    from qiskit_algorithms import EstimationProblem
+
     n = int(np.log2(len(probs)))
     amplitudes = np.sqrt(probs)
 
@@ -93,6 +99,8 @@ class TranspilingSampler:
         self._inner = inner
 
     def run(self, pubs, **kwargs):
+        from qiskit import transpile
+
         fixed = []
         for pub in pubs:
             if isinstance(pub, tuple):
@@ -124,6 +132,9 @@ def iqae_tail_probability(
     seed: int = 7,
 ) -> tuple[float, int]:
     """IQAE-estimate P(loss bucket >= threshold_idx). Returns (p, queries)."""
+    from qiskit_aer.primitives import SamplerV2 as AerSampler
+    from qiskit_algorithms import IterativeAmplitudeEstimation
+
     problem = build_problem(probs, threshold_idx)
     sampler = TranspilingSampler(AerSampler(default_shots=shots, seed=seed))
     iqae = IterativeAmplitudeEstimation(

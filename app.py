@@ -15,8 +15,14 @@ import streamlit as st
 from src.aws_services import generate_risk_commentary, load_metadata, load_position_csv
 from src.benchmark import plot_benchmark, run_benchmark
 from src.classical_var import monte_carlo_var
+from src.compute import scenario_table_rows
+from src.isolate import run_isolated
 from src.quantum_var import discretize, quantum_var
 from src.scenarios import SCENARIOS, apply_scenario
+
+# Quantum estimators (qiskit/Aer, Braket) execute via run_isolated in a
+# spawned subprocess: native quantum-SDK code inside Streamlit's script
+# threads can SIGSEGV on macOS, and compute belongs outside the UI process.
 
 AGREEMENT_TOL = 0.15  # relative diff below which classical/quantum "agree"
 
@@ -53,10 +59,10 @@ def _analyze(pair: str, scenario_key: str, backend: str):
     if backend == "Braket local":
         from src.braket_var import braket_quantum_var
 
-        q = braket_quantum_var(stressed)
+        q = run_isolated(braket_quantum_var, stressed)
         q_var, q_queries, q_backend = q.var_estimate, q.oracle_queries, "Braket LocalSimulator (MLAE)"
     else:
-        q = quantum_var(stressed, epsilon=0.01, seed=7)
+        q = run_isolated(quantum_var, stressed, epsilon=0.01, seed=7)
         q_var, q_queries, q_backend = q.var_estimate, q.oracle_queries, "Qiskit Aer (IQAE)"
     return stressed, mc, q_var, q_queries, q_backend, data_source
 
@@ -65,7 +71,7 @@ def _analyze(pair: str, scenario_key: str, backend: str):
 def _benchmark(pair: str, scenario_key: str):
     returns, _ = _load(pair)
     stressed = apply_scenario(returns, scenario_key, seed=1)
-    return run_benchmark(stressed)
+    return run_isolated(run_benchmark, stressed)
 
 
 @st.cache_data(show_spinner=False)
@@ -78,21 +84,7 @@ def _baseline_var(pair: str) -> float:
 @st.cache_data(show_spinner="Running all 10 scenarios…")
 def _scenario_table(pair: str):
     returns, _ = _load(pair)
-    rows = []
-    for key, sc in SCENARIOS.items():
-        stressed = apply_scenario(returns, key, seed=1)
-        mc = monte_carlo_var(stressed, target_error=0.005, seed=2)
-        q = quantum_var(stressed, epsilon=0.01, seed=7)
-        rows.append(
-            {
-                "Scenario": sc["name"],
-                "Classical VaR": f"{mc.var_estimate:.3%}",
-                "Quantum VaR": f"{q.var_estimate:.3%}",
-                "MC samples": mc.samples_to_converge,
-                "QAE queries": q.oracle_queries,
-            }
-        )
-    return pd.DataFrame(rows)
+    return pd.DataFrame(run_isolated(scenario_table_rows, returns))
 
 
 # ------------------------------------------------------------- left inputs
