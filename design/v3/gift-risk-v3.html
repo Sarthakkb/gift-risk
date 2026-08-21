@@ -1,0 +1,943 @@
+<title>GIFT Risk v3</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Archivo:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=Martian+Mono:wght@400;500;600;700&display=swap">
+
+<style>
+  /* ============================= TOKENS ============================= */
+  :root {
+    --bg: #F2EFE7;
+    --surface: #FBFAF6;
+    --surface-2: #EAE5D6;
+    --ink: #1B2333;
+    --ink-muted: #6B6455;
+    --ink-faint: #948C79;
+    --line: #DAD2BC;
+    --line-strong: #C7BC9E;
+    --cobalt: #2A4494;
+    --cobalt-soft: #E3E8F5;
+    --brass: #9C711F;
+    --brass-soft: #F1E6CD;
+    --terracotta: #A23B2C;
+    --terracotta-soft: #F4E1DA;
+    --olive: #45633A;
+    --olive-soft: #E1E9DB;
+    --focus: #2A4494;
+    --shadow: 0 1px 2px rgba(27,35,51,0.06), 0 6px 20px rgba(27,35,51,0.05);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #14181F;
+      --surface: #1C222C;
+      --surface-2: #262E3A;
+      --ink: #EDE7DA;
+      --ink-muted: #A79E8C;
+      --ink-faint: #756D5E;
+      --line: #333B48;
+      --line-strong: #414B5A;
+      --cobalt: #8CA3EA;
+      --cobalt-soft: #232C44;
+      --brass: #D9A94F;
+      --brass-soft: #362C18;
+      --terracotta: #E08978;
+      --terracotta-soft: #3A2420;
+      --olive: #8FBB78;
+      --olive-soft: #212D1F;
+      --focus: #8CA3EA;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #14181F;
+    --surface: #1C222C;
+    --surface-2: #262E3A;
+    --ink: #EDE7DA;
+    --ink-muted: #A79E8C;
+    --ink-faint: #756D5E;
+    --line: #333B48;
+    --line-strong: #414B5A;
+    --cobalt: #8CA3EA;
+    --cobalt-soft: #232C44;
+    --brass: #D9A94F;
+    --brass-soft: #362C18;
+    --terracotta: #E08978;
+    --terracotta-soft: #3A2420;
+    --olive: #8FBB78;
+    --olive-soft: #212D1F;
+    --focus: #8CA3EA;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.35);
+  }
+
+  /* ============================= RESET ============================= */
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Archivo', system-ui, sans-serif;
+    font-size: 15px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3 { margin: 0; font-weight: 400; text-wrap: balance; }
+  p { margin: 0; }
+  button { font-family: inherit; cursor: pointer; }
+  :focus-visible { outline: 2.5px solid var(--focus); outline-offset: 2px; }
+  ::selection { background: var(--cobalt-soft); }
+  .mono { font-family: 'Martian Mono', 'IBM Plex Mono', monospace; font-variant-numeric: tabular-nums; }
+  .serif { font-family: 'Instrument Serif', Georgia, serif; }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+  }
+
+  /* ============================= LAYOUT SHELL ============================= */
+  .page {
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 28px 20px 80px 20px;
+  }
+  section + section { margin-top: 40px; }
+  .eyebrow {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+  }
+
+  /* ============================= MASTHEAD ============================= */
+  .masthead {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+    padding-bottom: 18px;
+    border-bottom: 2.5px solid var(--ink);
+    flex-wrap: wrap;
+  }
+  .masthead h1 {
+    font-family: 'Instrument Serif', Georgia, serif;
+    font-size: 44px;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+  }
+  .masthead .tagline {
+    font-size: 13px;
+    color: var(--ink-muted);
+    margin-top: 2px;
+  }
+  .masthead .dateline {
+    text-align: right;
+    font-size: 12.5px;
+    color: var(--ink-muted);
+    font-family: 'Martian Mono', monospace;
+  }
+  .edition-note {
+    margin-top: 10px;
+    padding: 11px 14px;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    font-size: 12px;
+    color: var(--ink-muted);
+    line-height: 1.6;
+  }
+  .edition-note strong { color: var(--ink); font-weight: 700; }
+
+  /* ============================= CHOOSER ============================= */
+  h2.section-title {
+    font-family: 'Instrument Serif', Georgia, serif;
+    font-size: 24px;
+    color: var(--ink);
+    margin-bottom: 4px;
+  }
+  .section-sub {
+    font-size: 13px;
+    color: var(--ink-muted);
+    margin-bottom: 16px;
+  }
+
+  .book-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+  @media (max-width: 620px) { .book-grid { grid-template-columns: 1fr; } }
+
+  .book-card {
+    text-align: left;
+    background: var(--surface);
+    border: 1.5px solid var(--line);
+    border-radius: 3px;
+    padding: 14px 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    transition: border-color .15s ease, transform .1s ease;
+  }
+  .book-card:hover { border-color: var(--line-strong); transform: translateY(-1px); }
+  .book-card[aria-pressed="true"] {
+    border-color: var(--cobalt);
+    background: var(--cobalt-soft);
+  }
+  .book-card .pair {
+    font-family: 'Martian Mono', monospace;
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .book-card[aria-pressed="true"] .pair { color: var(--cobalt); }
+  .book-card .entity { font-size: 12px; color: var(--ink-muted); margin-top: 4px; }
+  .book-card .exposure { font-size: 11.5px; color: var(--ink-faint); margin-top: 5px; font-style: italic; }
+
+  .scenario-list {
+    display: flex;
+    flex-direction: column;
+    border: 1.5px solid var(--line);
+    border-radius: 3px;
+    overflow: hidden;
+    background: var(--surface);
+  }
+  .scenario-row {
+    display: grid;
+    grid-template-columns: 20px 1fr;
+    gap: 12px;
+    align-items: start;
+    text-align: left;
+    padding: 11px 14px;
+    border: none;
+    background: transparent;
+    border-bottom: 1px solid var(--line);
+  }
+  .scenario-row:last-child { border-bottom: none; }
+  .scenario-row:hover { background: var(--surface-2); }
+  .scenario-row[aria-pressed="true"] { background: var(--cobalt-soft); }
+  .scenario-radio {
+    width: 15px; height: 15px; border-radius: 50%;
+    border: 1.5px solid var(--line-strong);
+    margin-top: 2px;
+    position: relative;
+    flex-shrink: 0;
+  }
+  .scenario-row[aria-pressed="true"] .scenario-radio { border-color: var(--cobalt); }
+  .scenario-row[aria-pressed="true"] .scenario-radio::after {
+    content: ""; position: absolute; inset: 3px; border-radius: 50%; background: var(--cobalt);
+  }
+  .scenario-name { font-size: 13.5px; font-weight: 600; color: var(--ink); }
+  .scenario-desc { font-size: 12.5px; color: var(--ink-muted); margin-top: 1px; }
+
+  .run-row { display: flex; justify-content: center; margin-top: 20px; }
+  .run-btn {
+    background: var(--ink);
+    color: var(--surface);
+    border: none;
+    border-radius: 3px;
+    padding: 13px 28px;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+  }
+  .run-btn:hover { opacity: 0.88; }
+  .run-btn svg { width: 15px; height: 15px; }
+
+  /* ============================= RESULTS / FLIP BOARD ============================= */
+  .results-empty {
+    text-align: center;
+    padding: 44px 20px;
+    border: 1.5px dashed var(--line-strong);
+    border-radius: 3px;
+    color: var(--ink-muted);
+    font-size: 13.5px;
+  }
+  .results { display: none; }
+  .results.visible { display: block; }
+
+  .results-heading { text-align: center; }
+  .results-heading h2 {
+    font-family: 'Instrument Serif', Georgia, serif;
+    font-size: 28px;
+  }
+  .results-heading .plain {
+    font-size: 13.5px;
+    color: var(--ink-muted);
+    max-width: 480px;
+    margin: 8px auto 0 auto;
+    line-height: 1.55;
+  }
+
+  .flip-board {
+    display: flex;
+    justify-content: center;
+    gap: 28px;
+    margin-top: 26px;
+    flex-wrap: wrap;
+  }
+  .flip-unit { text-align: center; }
+  .flip-unit .flip-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-bottom: 8px;
+  }
+  .flip-unit.quantum .flip-label { color: var(--brass); }
+  .flip-unit.classical .flip-label { color: var(--cobalt); }
+  .flip-tiles {
+    display: flex;
+    background: var(--ink);
+    border-radius: 4px;
+    padding: 4px;
+    gap: 2px;
+    box-shadow: var(--shadow);
+  }
+  .flip-tile {
+    width: 21px; height: 34px;
+    background: var(--surface);
+    color: var(--ink);
+    border-radius: 2px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Martian Mono', monospace;
+    font-size: 19px; font-weight: 600;
+    perspective: 160px;
+    position: relative;
+    overflow: hidden;
+  }
+  .flip-tile .face {
+    display: inline-block;
+    transform-origin: 50% 50%;
+  }
+  .flip-tile .face.flip-out { animation: tileOut 0.16s ease-in forwards; }
+  .flip-tile .face.flip-in { animation: tileIn 0.16s ease-out forwards; }
+  @keyframes tileOut { from { transform: rotateX(0deg); } to { transform: rotateX(-92deg); } }
+  @keyframes tileIn { from { transform: rotateX(92deg); } to { transform: rotateX(0deg); } }
+  .flip-unit.classical .flip-tile { color: var(--cobalt); }
+  .flip-unit.quantum .flip-tile { color: var(--brass); }
+  .flip-unit .flip-sub {
+    margin-top: 8px; font-size: 11.5px; color: var(--ink-muted); font-family: 'Martian Mono', monospace;
+  }
+
+  .agreement-line {
+    text-align: center;
+    margin-top: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 13.5px;
+    font-weight: 600;
+  }
+  .agreement-line.ok { color: var(--olive); }
+  .agreement-line.warn { color: var(--terracotta); }
+  .agreement-line svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+  .backend-strap {
+    text-align: center;
+    margin-top: 10px;
+    font-size: 11.5px;
+    color: var(--ink-faint);
+    font-family: 'Martian Mono', monospace;
+  }
+
+  .baseline-delta {
+    text-align: center;
+    margin-top: 14px;
+    font-size: 12.5px;
+    color: var(--ink-muted);
+  }
+  .baseline-delta strong { color: var(--ink); font-family: 'Martian Mono', monospace; }
+
+  /* ============================= NOTE FROM THE DESK ============================= */
+  .desk-note {
+    margin-top: 26px;
+    background: var(--surface);
+    border-left: 3px solid var(--brass);
+    border-radius: 0 3px 3px 0;
+    padding: 18px 20px;
+  }
+  .desk-note .eyebrow { color: var(--brass); margin-bottom: 8px; }
+  .desk-note p { font-size: 14px; line-height: 1.7; color: var(--ink); }
+  .desk-note .fine { font-size: 11px; color: var(--ink-faint); margin-top: 10px; font-style: italic; }
+
+  /* ============================= HEDGE ============================= */
+  .hedge-box {
+    background: var(--surface);
+    border: 1.5px solid var(--line);
+    border-radius: 3px;
+    padding: 22px;
+  }
+  .hedge-context { font-size: 13px; color: var(--ink-muted); margin-bottom: 18px; }
+  .hedge-context strong { color: var(--ink); }
+
+  .slider-row { display: flex; align-items: center; gap: 14px; }
+  .slider-row label { font-size: 12.5px; font-weight: 600; color: var(--ink-muted); white-space: nowrap; }
+  input[type="range"] {
+    flex: 1; height: 4px; border-radius: 2px; background: var(--line-strong);
+    -webkit-appearance: none; appearance: none;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%;
+    background: var(--cobalt); border: 3px solid var(--surface); box-shadow: var(--shadow); cursor: pointer;
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 18px; height: 18px; border-radius: 50%; background: var(--cobalt);
+    border: 3px solid var(--surface); box-shadow: var(--shadow); cursor: pointer;
+  }
+  .slider-value {
+    font-family: 'Martian Mono', monospace; font-size: 15px; font-weight: 700; color: var(--cobalt);
+    min-width: 46px; text-align: right;
+  }
+
+  .hedge-answer {
+    margin-top: 20px;
+    padding-top: 18px;
+    border-top: 1px dashed var(--line-strong);
+    text-align: center;
+  }
+  .hedge-answer .plain-answer {
+    font-family: 'Instrument Serif', Georgia, serif;
+    font-size: 26px;
+    color: var(--ink);
+  }
+  .hedge-answer .plain-answer .verb { color: var(--cobalt); }
+  .hedge-answer .instrument { font-size: 12.5px; color: var(--ink-muted); margin-top: 4px; }
+
+  .hedge-compare {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+    margin-top: 18px;
+  }
+  .hedge-compare .cell { text-align: center; padding: 12px; background: var(--surface-2); border-radius: 3px; }
+  .hedge-compare .cell .label { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-faint); }
+  .hedge-compare .cell .value { font-family: 'Martian Mono', monospace; font-size: 17px; font-weight: 600; margin-top: 4px; color: var(--ink); }
+
+  .assumption-note { font-size: 11px; color: var(--ink-faint); margin-top: 14px; line-height: 1.6; }
+
+  /* ============================= EVIDENCE (collapsible) ============================= */
+  .evidence-toggle {
+    width: 100%;
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--surface); border: 1.5px solid var(--line); border-radius: 3px;
+    padding: 14px 18px; font-size: 13.5px; font-weight: 600; color: var(--ink);
+  }
+  .evidence-toggle svg { width: 16px; height: 16px; transition: transform .2s ease; color: var(--ink-muted); }
+  .evidence-toggle[aria-expanded="true"] svg { transform: rotate(180deg); }
+  .evidence-body { display: none; margin-top: 16px; }
+  .evidence-body.open { display: block; }
+  .evidence-sub { font-size: 12.5px; color: var(--ink-muted); margin-bottom: 18px; line-height: 1.6; }
+
+  .evidence-card {
+    background: var(--surface); border: 1.5px solid var(--line); border-radius: 3px; padding: 18px 20px;
+  }
+  .evidence-card + .evidence-card { margin-top: 14px; }
+  .evidence-card h3 { font-size: 13.5px; font-weight: 700; color: var(--ink); }
+  .evidence-card .note { font-size: 11.5px; color: var(--ink-faint); margin-top: 3px; margin-bottom: 12px; }
+
+  .scroll-x { overflow-x: auto; }
+  table.scenario-table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 480px; }
+  table.scenario-table th {
+    text-align: right; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.04em;
+    color: var(--ink-faint); font-weight: 700; padding-bottom: 8px; border-bottom: 1.5px solid var(--line);
+  }
+  table.scenario-table th:first-child { text-align: left; }
+  table.scenario-table td { padding: 7px 4px; text-align: right; font-family: 'Martian Mono', monospace; }
+  table.scenario-table td:first-child { text-align: left; font-family: 'Archivo', sans-serif; font-weight: 500; }
+  table.scenario-table tr.current { background: var(--cobalt-soft); }
+  table.scenario-table tr.current td:first-child { border-left: 3px solid var(--cobalt); padding-left: 8px; }
+  table.scenario-table td.qval { color: var(--brass); }
+  table.scenario-table td.cval { color: var(--cobalt); }
+
+  .dist-bars { display: flex; align-items: flex-end; gap: 5px; height: 110px; padding-left: 4px; border-left: 1px solid var(--line); border-bottom: 1px solid var(--line); position: relative; }
+  .dist-bar { flex: 1; background: var(--cobalt); border-radius: 2px 2px 0 0; }
+  .dist-bar.tail { background: var(--terracotta); }
+  .dist-marker { position: absolute; top: 0; bottom: 0; border-left: 1.5px dashed var(--ink-faint); }
+  .dist-axis { display: flex; justify-content: space-between; margin-top: 5px; font-size: 10px; color: var(--ink-faint); }
+
+  footer.page-footer {
+    margin-top: 48px; padding-top: 16px; border-top: 1px solid var(--line);
+    font-size: 11px; color: var(--ink-faint); text-align: center; line-height: 1.6;
+  }
+</style>
+
+<div class="page">
+
+  <!-- ============================= MASTHEAD ============================= -->
+  <div class="masthead">
+    <div>
+      <h1>GIFT Risk</h1>
+      <div class="tagline">Treasury risk, checked each morning</div>
+    </div>
+    <div class="dateline">Friday · 21 Aug 2026<br>GIFT City, IFSC</div>
+  </div>
+  <div class="edition-note">
+    <strong>Simulator edition.</strong> Positions and market data on this page are synthetic. The quantum step runs on a classical simulator, not real hardware. This shows how the method works &mdash; it is not financial advice, and not a production risk system.
+  </div>
+
+  <!-- ============================= CHOOSER ============================= -->
+  <section>
+    <h2 class="section-title">Which book?</h2>
+    <div class="section-sub">Pick the currency pair you want to check today.</div>
+    <div class="book-grid" id="bookGrid" role="group" aria-label="Currency pair"></div>
+  </section>
+
+  <section>
+    <h2 class="section-title">Which scenario?</h2>
+    <div class="section-sub">Pick a macro stress test, or leave it on Baseline for ordinary conditions.</div>
+    <div class="scenario-list" id="scenarioList" role="group" aria-label="Stress scenario"></div>
+    <div class="run-row">
+      <button class="run-btn" id="runBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3l16 9-16 9V3z"/></svg>
+        <span id="runBtnLabel">Run today's analysis</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ============================= RESULTS ============================= -->
+  <section>
+    <div class="results-empty" id="resultsEmpty">Choose a book and a scenario above, then run today's analysis.</div>
+    <div class="results" id="results">
+      <div class="results-heading">
+        <h2 class="serif">Today's Value at Risk</h2>
+        <p class="plain" id="resultsPlain"></p>
+      </div>
+
+      <div class="flip-board">
+        <div class="flip-unit classical">
+          <div class="flip-label">Classical</div>
+          <div class="flip-tiles" id="tilesClassical"></div>
+          <div class="flip-sub" id="subClassical"></div>
+        </div>
+        <div class="flip-unit quantum">
+          <div class="flip-label">Quantum-checked</div>
+          <div class="flip-tiles" id="tilesQuantum"></div>
+          <div class="flip-sub" id="subQuantum"></div>
+        </div>
+      </div>
+
+      <div class="agreement-line" id="agreementLine"></div>
+      <div class="backend-strap" id="backendStrap"></div>
+      <div class="baseline-delta" id="baselineDelta"></div>
+
+      <div class="desk-note">
+        <div class="eyebrow">Note from the desk &middot; AI-drafted, Bedrock / Claude Opus 5</div>
+        <p id="deskNoteText"></p>
+        <div class="fine">Drafted for context, not financial advice &mdash; review before acting.</div>
+      </div>
+
+      <!-- ============================= HEDGE ============================= -->
+      <div style="margin-top:40px;">
+        <h2 class="section-title">Hedge this book</h2>
+        <div class="hedge-box">
+          <div class="hedge-context" id="hedgeContext"></div>
+          <div class="slider-row">
+            <label for="hedgeSlider">Target cover</label>
+            <input type="range" id="hedgeSlider" min="0" max="100" step="5" value="50">
+            <div class="slider-value" id="hedgeSliderValue">50%</div>
+          </div>
+          <div class="hedge-answer">
+            <div class="plain-answer" id="hedgeAnswer"></div>
+            <div class="instrument" id="hedgeInstrument"></div>
+          </div>
+          <div class="hedge-compare">
+            <div class="cell">
+              <div class="label">VaR at current cover</div>
+              <div class="value" id="hedgeCurrentVar"></div>
+            </div>
+            <div class="cell">
+              <div class="label">VaR at target cover</div>
+              <div class="value" id="hedgeTargetVar"></div>
+            </div>
+          </div>
+          <div class="assumption-note">Assumes a same-pair forward that offsets the exposure one-for-one, with no other costs. Real hedging also involves forward points, cost of carry, and counterparty credit limits.</div>
+        </div>
+      </div>
+
+      <!-- ============================= EVIDENCE ============================= -->
+      <div style="margin-top:40px;">
+        <button class="evidence-toggle" id="evidenceToggle" aria-expanded="false" aria-controls="evidenceBody">
+          <span>Show the evidence &mdash; why trust the quantum number</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+        <div class="evidence-body" id="evidenceBody">
+          <div class="evidence-sub">Both methods estimate the same quantity &mdash; the odds of a loss past a threshold &mdash; so their resource counts are directly comparable. This is sample efficiency only; nothing here claims quantum hardware is faster in wall-clock time.</div>
+
+          <div class="evidence-card">
+            <h3>Fewer samples to reach the same precision</h3>
+            <div class="note">Measured on this position/scenario. Classical Monte Carlo needs ~1/&epsilon;&sup2; samples; quantum needs ~1/&epsilon;. The crossover is where quantum starts winning.</div>
+            <div class="scroll-x">
+              <svg viewBox="0 0 720 300" style="width:100%; height:auto; min-width:480px;" id="benchSvg"></svg>
+            </div>
+          </div>
+
+          <div class="evidence-card">
+            <h3>All 10 scenarios &mdash; <span id="evidencePairLabel"></span></h3>
+            <div class="note">Classical vs. quantum VaR and the samples/queries each needed. Current scenario highlighted.</div>
+            <div class="scroll-x">
+              <table class="scenario-table">
+                <thead><tr><th>Scenario</th><th>Classical</th><th>Quantum</th><th>MC n</th><th>QAE q</th></tr></thead>
+                <tbody id="scenarioTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="evidence-card">
+            <h3>Stressed loss distribution</h3>
+            <div class="note" id="distNote"></div>
+            <div class="dist-bars" id="distBars"></div>
+            <div class="dist-axis"><span>smaller loss</span><span>larger loss</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="page-footer">
+    GIFT Risk is a hackathon prototype (Track 2 &mdash; Quantum Tech in Financial Services). Query-complexity comparison only; no wall-clock speed claim.
+  </footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ============================= DATA (real, from the actual pipeline) ============================= */
+  var PAIRS = [
+    { pair: "USD/INR", entity: "Standard Chartered IBU, GIFT City", desk: "Cross-Border Treasury Desk — USD",
+      exposureType: "payable", exposureNote: "Offshore USD loan drawdown — owes USD at maturity", hedgeRatio: 0.35 },
+    { pair: "SGD/INR", entity: "DBS Bank IFSC Banking Unit, GIFT City", desk: "Asia FX & Remittances Desk",
+      exposureType: "receivable", exposureNote: "SGD trade & remittance receivables — is owed SGD", hedgeRatio: 0.55 },
+    { pair: "AED/INR", entity: "Axis Bank (IFSC Branch), GIFT City", desk: "Gulf Corridor Trade Finance Desk",
+      exposureType: "payable", exposureNote: "LC-backed import payables to Gulf suppliers — owes AED", hedgeRatio: 0.20 }
+  ];
+
+  var SCENARIOS = [
+    { key: "baseline", name: "Baseline: Normal Market", desc: "Standard trading conditions — no macro stress.", dist: "normal",
+      narrative: "Standard GIFT IFSC trading conditions. No macro stress. VaR reflects baseline FX volatility." },
+    { key: "fed_rate_hike", name: "Fed Rate Hike", desc: "Unexpected Fed tightening — dollar rallies, INR depreciates.", dist: "skewed",
+      narrative: "Fed tightens unexpectedly. Dollar rallies, INR depreciates. Capital outflows from GIFT City IBUs toward USD assets accelerate." },
+    { key: "oil_price_shock", name: "Oil Price Shock", desc: "Brent +30% — import bill widens deficit, INR under pressure.", dist: "fat_tail",
+      narrative: "Brent crude spikes 30%. India, importing 85% of oil needs, faces higher import costs. Current account deficit widens, INR depreciates." },
+    { key: "gold_flight", name: "Gold Flight-to-Safety", desc: "Global risk-off — flows into gold and USD, EM outflows.", dist: "fat_tail",
+      narrative: "Global risk-off episode. Capital flows into gold and USD. EM positions including GIFT City IBU books see outflows." },
+    { key: "us_jobs_miss", name: "US Jobs Report Miss", desc: "NFP shock — recession fears, sharp EM sell-off, rapid onset.", dist: "fat_tail",
+      narrative: "Non-Farm Payrolls miss consensus badly. Recession fears spike. EM currencies sell off sharply. Rapid onset — catches unhedged IBU treasury desks." },
+    { key: "gift_liquidity", name: "GIFT City Liquidity Crunch", desc: "IFSC-specific settlement bottleneck — spreads blow out.", dist: "bimodal",
+      narrative: "GIFT IFSC-specific stress: simultaneous IBU liquidity demands create settlement bottlenecks. Bid-ask spreads blow out, positions are harder to unwind." },
+    { key: "china_slowdown", name: "China Slowdown", desc: "Chinese GDP miss — Asia EM contagion via trade channels.", dist: "skewed",
+      narrative: "Chinese GDP miss triggers Asia EM sell-off. INR, SGD, AED all under pressure via trade and capital channel contagion." },
+    { key: "india_downgrade", name: "India Sovereign Downgrade", desc: "Rating downgrade — capital flight, funding costs spike.", dist: "fat_tail",
+      narrative: "Rating agency downgrades India sovereign debt. Capital flight accelerates, INR depreciates sharply, GIFT City IBU funding costs spike." },
+    { key: "equity_crash", name: "Global Equity Crash (SPY -20%)", desc: "Correlated risk-asset sell-off — diversification fails.", dist: "fat_tail",
+      narrative: "S&P 500 drops 20% rapidly. Risk assets sell off simultaneously — EM FX, credit, equities reprice lower together. Correlations spike to 1." },
+    { key: "crypto_contagion", name: "Crypto Contagion (BTC -50%)", desc: "Stablecoin redemptions tighten USD liquidity — EM pressure.", dist: "skewed",
+      narrative: "Bitcoin drops 50% in 48 hours. Stablecoin redemptions create USD demand, tightening dollar liquidity. EM currencies including INR face pressure." }
+  ];
+
+  var DATA = {
+    "USD/INR": { baseline:[0.543,0.573], fed_rate_hike:[1.106,1.171], oil_price_shock:[1.542,1.690], gold_flight:[0.947,1.059], us_jobs_miss:[1.913,1.879], gift_liquidity:[3.622,3.714], china_slowdown:[1.201,1.265], india_downgrade:[1.985,2.058], equity_crash:[2.786,2.781], crypto_contagion:[1.020,1.079] },
+    "SGD/INR": { baseline:[0.606,0.630], fed_rate_hike:[1.212,1.269], oil_price_shock:[1.784,1.805], gold_flight:[1.082,1.154], us_jobs_miss:[1.941,1.982], gift_liquidity:[4.229,4.262], china_slowdown:[1.315,1.377], india_downgrade:[2.142,2.181], equity_crash:[3.018,3.054], crypto_contagion:[1.119,1.169] },
+    "AED/INR": { baseline:[0.538,0.552], fed_rate_hike:[1.096,1.110], oil_price_shock:[1.574,1.646], gold_flight:[0.959,1.041], us_jobs_miss:[1.635,1.694], gift_liquidity:[3.814,3.830], china_slowdown:[1.190,1.205], india_downgrade:[1.914,1.980], equity_crash:[2.699,2.654], crypto_contagion:[1.010,1.026] }
+  };
+
+  var QUERIES_AER = { baseline:3840, fed_rate_hike:3008, oil_price_shock:3904, gold_flight:4224, us_jobs_miss:3136, gift_liquidity:2368, china_slowdown:3264, india_downgrade:5760, equity_crash:3456, crypto_contagion:3328 };
+  var MC_SAMPLES = { baseline:2000, fed_rate_hike:2000, oil_price_shock:2000, gold_flight:2000, us_jobs_miss:2000, gift_liquidity:2000, china_slowdown:2000, india_downgrade:2000, equity_crash:2000, crypto_contagion:2000 };
+
+  var DIST_SHAPES = {
+    normal:   [0.03,0.09,0.20,0.30,0.22,0.11,0.04,0.01],
+    skewed:   [0.02,0.06,0.14,0.24,0.26,0.16,0.09,0.03],
+    fat_tail: [0.05,0.08,0.13,0.19,0.20,0.15,0.12,0.08],
+    bimodal:  [0.10,0.16,0.10,0.06,0.08,0.14,0.20,0.16]
+  };
+  var DIST_LABEL = { normal: "shaped like an ordinary trading day", skewed: "leaning toward larger losses", fat_tail: "fat-tailed — extreme losses more likely than usual", bimodal: "two-humped — either it settles, or it gaps hard" };
+
+  var BENCH_X = [60, 182.8, 318.6, 421.3, 524.1, 660];
+  var BENCH_YC = [253.3, 213.5, 161.3, 121.6, 81.3, 28.2];
+  var BENCH_YQ = [235.3, 235.3, 194.3, 155.1, 155.2, 114.1];
+  var BENCH_SPEEDUP = ["1×","2×","3×","3×","13×","19×"];
+  var BENCH_EPS = ["5e-3","2.5e-3","1e-3","5e-4","2.5e-4","1e-4"];
+
+  var AGREEMENT_TOL = 0.15;
+  var NOTIONAL = 10000000;
+
+  /* ============================= STATE ============================= */
+  var state = { pair: "USD/INR", scenario: "baseline", hasRun: false, targetRatio: null };
+
+  var reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  /* ============================= HELPERS ============================= */
+  function fmtUsd(n) { return "$" + Math.round(n).toLocaleString("en-US"); }
+  function findPair(p) { for (var i=0;i<PAIRS.length;i++){ if (PAIRS[i].pair===p) return PAIRS[i]; } }
+  function findScenario(k) { for (var i=0;i<SCENARIOS.length;i++){ if (SCENARIOS[i].key===k) return SCENARIOS[i]; } }
+
+  /* ============================= CHOOSER RENDER ============================= */
+  function renderBookGrid() {
+    var el = document.getElementById("bookGrid");
+    el.innerHTML = "";
+    PAIRS.forEach(function (p) {
+      var card = document.createElement("button");
+      card.className = "book-card";
+      card.type = "button";
+      card.setAttribute("aria-pressed", state.pair === p.pair ? "true" : "false");
+      card.innerHTML =
+        '<div class="pair">' + p.pair + '</div>' +
+        '<div class="entity">' + p.entity + ' &middot; ' + p.desk + '</div>' +
+        '<div class="exposure">' + p.exposureNote + '</div>';
+      card.addEventListener("click", function () { state.pair = p.pair; state.targetRatio = null; renderBookGrid(); });
+      el.appendChild(card);
+    });
+  }
+
+  function renderScenarioList() {
+    var el = document.getElementById("scenarioList");
+    el.innerHTML = "";
+    SCENARIOS.forEach(function (sc) {
+      var row = document.createElement("button");
+      row.className = "scenario-row";
+      row.type = "button";
+      row.setAttribute("aria-pressed", state.scenario === sc.key ? "true" : "false");
+      row.innerHTML =
+        '<span class="scenario-radio"></span>' +
+        '<span><span class="scenario-name">' + sc.name + '</span><br>' +
+        '<span class="scenario-desc">' + sc.desc + '</span></span>';
+      row.addEventListener("click", function () { state.scenario = sc.key; renderScenarioList(); });
+      el.appendChild(row);
+    });
+  }
+
+  /* ============================= FLIP BOARD ============================= */
+  function buildTiles(container, length) {
+    container.innerHTML = "";
+    for (var i = 0; i < length; i++) {
+      var tile = document.createElement("div");
+      tile.className = "flip-tile";
+      var face = document.createElement("span");
+      face.className = "face";
+      face.textContent = " ";
+      tile.appendChild(face);
+      container.appendChild(tile);
+    }
+  }
+
+  function setFlipValue(containerId, str, animate) {
+    var container = document.getElementById(containerId);
+    if (container.children.length !== str.length) buildTiles(container, str.length);
+    for (var i = 0; i < str.length; i++) {
+      (function (i) {
+        var face = container.children[i].querySelector(".face");
+        var ch = str[i];
+        if (!animate || reduceMotion) {
+          face.textContent = ch;
+          return;
+        }
+        setTimeout(function () {
+          face.classList.add("flip-out");
+          setTimeout(function () {
+            face.textContent = ch;
+            face.classList.remove("flip-out");
+            face.classList.add("flip-in");
+            setTimeout(function () { face.classList.remove("flip-in"); }, 170);
+          }, 160);
+        }, i * 45);
+      })(i);
+    }
+  }
+
+  /* ============================= HEDGE CALC (mirrors src/hedge.py) ============================= */
+  function computeHedgeTrade(unhedgedVarPct, notional, currentRatio, targetRatio, exposureType, pair) {
+    var currentHedged = unhedgedVarPct * (1 - currentRatio);
+    var targetHedged = unhedgedVarPct * (1 - targetRatio);
+    var delta = targetRatio - currentRatio;
+    var isIncrease = delta > 1e-9;
+    var fcy = pair.split("/")[0];
+    var action;
+    if (exposureType === "payable") { action = isIncrease ? "Buy" : "Sell"; }
+    else { action = isIncrease ? "Sell" : "Buy"; }
+    return {
+      currentHedged: currentHedged, targetHedged: targetHedged,
+      notional: Math.abs(delta) * notional, action: action, currency: fcy, isIncrease: isIncrease
+    };
+  }
+
+  /* ============================= RESULTS RENDER ============================= */
+  function renderResults(animate) {
+    var pairMeta = findPair(state.pair);
+    var scObj = findScenario(state.scenario);
+    var vals = DATA[state.pair][state.scenario];
+    var classicalPct = vals[0], quantumPct = vals[1];
+    var classicalUsd = (classicalPct / 100) * NOTIONAL;
+    var quantumUsd = (quantumPct / 100) * NOTIONAL;
+    var diff = Math.abs(quantumPct - classicalPct) / classicalPct;
+    var agreeOk = diff <= AGREEMENT_TOL;
+    var baselinePct = DATA[state.pair]["baseline"][0];
+    var deltaPct = classicalPct / baselinePct - 1;
+    var deltaUsd = classicalUsd - (baselinePct / 100) * NOTIONAL;
+    var queries = QUERIES_AER[state.scenario];
+    var mcSamples = MC_SAMPLES[state.scenario];
+
+    document.getElementById("resultsPlain").textContent =
+      "If markets move the way " + scObj.name.toLowerCase() + " describes, this is the most " + state.pair + " could lose in a day, 95% of the time.";
+
+    setFlipValue("tilesClassical", fmtUsd(classicalUsd), animate);
+    setFlipValue("tilesQuantum", fmtUsd(quantumUsd), animate);
+    document.getElementById("subClassical").textContent = classicalPct.toFixed(3) + "% of notional";
+    document.getElementById("subQuantum").textContent = quantumPct.toFixed(3) + "% of notional";
+
+    var agreeEl = document.getElementById("agreementLine");
+    if (agreeOk) {
+      agreeEl.className = "agreement-line ok";
+      agreeEl.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.5 2.5L16 9.5"/></svg> Both methods agree &mdash; quantum checks out (diff ' + (diff*100).toFixed(1) + '%).';
+    } else {
+      agreeEl.className = "agreement-line warn";
+      agreeEl.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="7.5" x2="12" y2="13"/><circle cx="12" cy="16.3" r="0.6" fill="currentColor" stroke="none"/></svg> These two disagree by ' + (diff*100).toFixed(1) + '% &mdash; treat this number carefully.';
+    }
+
+    document.getElementById("backendStrap").textContent =
+      "Checked with Qiskit Aer's IQAE method · " + queries.toLocaleString() + " quantum queries vs. " + mcSamples.toLocaleString() + " classical samples";
+
+    var deltaSign = deltaPct >= 0 ? "up" : "down";
+    document.getElementById("baselineDelta").innerHTML =
+      "That is <strong>" + Math.abs(deltaPct*100).toFixed(1) + "% " + deltaSign + "</strong> vs. an ordinary day (Baseline), a swing of <strong>" + (deltaUsd>=0?"+":"−") + fmtUsd(Math.abs(deltaUsd)).replace("$","$") + "</strong>.";
+
+    var agreeText = agreeOk ? "agree within tolerance" : "show some divergence — worth a second look";
+    document.getElementById("deskNoteText").textContent =
+      scObj.narrative + " Under this scenario, the " + state.pair + " book (" + pairMeta.desk + ") shows a 95% one-day VaR of " + classicalPct.toFixed(3) + "% of notional (~" + fmtUsd(classicalUsd) + "). Classical Monte Carlo and quantum amplitude estimation " + agreeText + ", with QAE reaching this precision using " + queries.toLocaleString() + " oracle queries versus " + mcSamples.toLocaleString() + " classical samples.";
+
+    renderScenarioTable();
+    renderDistribution();
+    document.getElementById("evidencePairLabel").textContent = state.pair;
+
+    renderHedge();
+  }
+
+  function renderScenarioTable() {
+    var body = document.getElementById("scenarioTableBody");
+    body.innerHTML = "";
+    SCENARIOS.forEach(function (sc) {
+      var vals = DATA[state.pair][sc.key];
+      var tr = document.createElement("tr");
+      if (sc.key === state.scenario) tr.className = "current";
+      tr.innerHTML =
+        "<td>" + sc.name + "</td>" +
+        '<td class="cval">' + vals[0].toFixed(3) + "%</td>" +
+        '<td class="qval">' + vals[1].toFixed(3) + "%</td>" +
+        "<td>" + MC_SAMPLES[sc.key].toLocaleString() + "</td>" +
+        "<td>" + QUERIES_AER[sc.key].toLocaleString() + "</td>";
+      body.appendChild(tr);
+    });
+  }
+
+  function renderDistribution() {
+    var scObj = findScenario(state.scenario);
+    var shape = DIST_SHAPES[scObj.dist];
+    var maxBar = Math.max.apply(null, shape);
+    var el = document.getElementById("distBars");
+    el.innerHTML = "";
+    shape.forEach(function (v, i) {
+      var bar = document.createElement("div");
+      bar.className = "dist-bar" + (i >= 5 ? " tail" : "");
+      bar.style.height = Math.round((v / maxBar) * 100) + "px";
+      el.appendChild(bar);
+    });
+    var marker = document.createElement("div");
+    marker.className = "dist-marker";
+    marker.style.left = "78%";
+    el.appendChild(marker);
+    document.getElementById("distNote").textContent =
+      "8-bucket encoding of this scenario's losses — exactly what the quantum circuit reads. Shape: " + DIST_LABEL[scObj.dist] + ". Dashed line marks the 95% VaR cutoff.";
+  }
+
+  function renderHedge() {
+    var pairMeta = findPair(state.pair);
+    var currentRatio = pairMeta.hedgeRatio;
+    if (state.targetRatio === null) state.targetRatio = currentRatio;
+    var slider = document.getElementById("hedgeSlider");
+    slider.value = Math.round(state.targetRatio * 100);
+    document.getElementById("hedgeSliderValue").textContent = Math.round(state.targetRatio * 100) + "%";
+
+    document.getElementById("hedgeContext").innerHTML =
+      "This book <strong>" + pairMeta.exposureNote.toLowerCase() + "</strong>, and <strong>" + Math.round(currentRatio*100) + "%</strong> of it is already covered by forwards.";
+
+    var classicalPct = DATA[state.pair][state.scenario][0];
+    var trade = computeHedgeTrade(classicalPct / 100, NOTIONAL, currentRatio, state.targetRatio, pairMeta.exposureType, state.pair);
+
+    var answerEl = document.getElementById("hedgeAnswer");
+    var instrEl = document.getElementById("hedgeInstrument");
+    if (trade.notional < 1) {
+      answerEl.innerHTML = "No trade needed";
+      instrEl.textContent = "Target cover already matches current cover.";
+    } else {
+      answerEl.innerHTML = '<span class="verb">' + trade.action + "</span> " + trade.currency + " " + Math.round(trade.notional).toLocaleString("en-US");
+      instrEl.textContent = "1-month FX forward, " + state.pair + " · " + (trade.isIncrease ? "adds cover" : "unwinds cover") + " to reach " + Math.round(state.targetRatio*100) + "%";
+    }
+    document.getElementById("hedgeCurrentVar").textContent = fmtUsd(trade.currentHedged * NOTIONAL);
+    document.getElementById("hedgeTargetVar").textContent = fmtUsd(trade.targetHedged * NOTIONAL);
+  }
+
+  /* ============================= BENCHMARK CHART (static, real measured data) ============================= */
+  function renderBenchmarkChart() {
+    var svg = document.getElementById("benchSvg");
+    var css = getComputedStyle(document.documentElement);
+    var cobalt = css.getPropertyValue("--cobalt").trim();
+    var brass = css.getPropertyValue("--brass").trim();
+    var faint = css.getPropertyValue("--ink-faint").trim();
+    var line = css.getPropertyValue("--line").trim();
+
+    var pts = "";
+    for (var i=0;i<BENCH_X.length;i++){ pts += BENCH_X[i] + "," + BENCH_YC[i] + " "; }
+    var ptsQ = "";
+    for (i=0;i<BENCH_X.length;i++){ ptsQ += BENCH_X[i] + "," + BENCH_YQ[i] + " "; }
+
+    var svgHtml =
+      '<line x1="60" y1="206.7" x2="700" y2="206.7" stroke="' + line + '" stroke-dasharray="3,4"/>' +
+      '<line x1="60" y1="140" x2="700" y2="140" stroke="' + line + '" stroke-dasharray="3,4"/>' +
+      '<line x1="60" y1="73.3" x2="700" y2="73.3" stroke="' + line + '" stroke-dasharray="3,4"/>' +
+      '<text x="52" y="210" text-anchor="end" font-family="Martian Mono" font-size="11" fill="' + faint + '">10⁴</text>' +
+      '<text x="52" y="143.5" text-anchor="end" font-family="Martian Mono" font-size="11" fill="' + faint + '">10⁵</text>' +
+      '<text x="52" y="76.8" text-anchor="end" font-family="Martian Mono" font-size="11" fill="' + faint + '">10⁶</text>' +
+      '<line x1="60" y1="20" x2="60" y2="280" stroke="' + line + '"/>' +
+      '<line x1="60" y1="280" x2="700" y2="280" stroke="' + line + '"/>' +
+      '<polyline points="' + pts + '" fill="none" stroke="' + cobalt + '" stroke-width="2.25"/>' +
+      '<polyline points="' + ptsQ + '" fill="none" stroke="' + brass + '" stroke-width="2.25"/>';
+
+    for (i=0;i<BENCH_X.length;i++){
+      svgHtml += '<circle cx="' + BENCH_X[i] + '" cy="' + BENCH_YC[i] + '" r="3.5" fill="' + cobalt + '"/>';
+      svgHtml += '<circle cx="' + BENCH_X[i] + '" cy="' + BENCH_YQ[i] + '" r="3.5" fill="' + brass + '"/>';
+      var labelY = Math.min(BENCH_YC[i], BENCH_YQ[i]) - 10;
+      svgHtml += '<text x="' + BENCH_X[i] + '" y="' + labelY + '" text-anchor="middle" font-family="Martian Mono" font-size="11" font-weight="600" fill="' + faint + '">' + BENCH_SPEEDUP[i] + '</text>';
+      svgHtml += '<text x="' + BENCH_X[i] + '" y="298" text-anchor="middle" font-family="Martian Mono" font-size="10.5" fill="' + faint + '">' + BENCH_EPS[i] + '</text>';
+    }
+    svgHtml += '<text x="380" y="316" text-anchor="middle" font-family="Archivo" font-size="11.5" fill="' + faint + '">target error ε (tighter →)</text>';
+    svg.innerHTML = svgHtml;
+  }
+
+  /* ============================= WIRE UP ============================= */
+  document.getElementById("runBtn").addEventListener("click", function () {
+    document.getElementById("resultsEmpty").style.display = "none";
+    document.getElementById("results").classList.add("visible");
+    var wasVisible = state.hasRun;
+    state.hasRun = true;
+    renderResults(true);
+    renderBenchmarkChart();
+    document.getElementById("results").scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
+  });
+
+  document.getElementById("hedgeSlider").addEventListener("input", function (e) {
+    state.targetRatio = Number(e.target.value) / 100;
+    document.getElementById("hedgeSliderValue").textContent = e.target.value + "%";
+    renderHedge();
+  });
+
+  document.getElementById("evidenceToggle").addEventListener("click", function () {
+    var body = document.getElementById("evidenceBody");
+    var open = body.classList.toggle("open");
+    this.setAttribute("aria-expanded", open ? "true" : "false");
+  });
+
+  renderBookGrid();
+  renderScenarioList();
+})();
+</script>
