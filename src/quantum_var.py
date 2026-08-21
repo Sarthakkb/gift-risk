@@ -120,7 +120,7 @@ def iqae_tail_probability(
     threshold_idx: int,
     epsilon: float = 0.01,
     alpha: float = 0.05,
-    shots: int = 256,
+    shots: int = 64,
     seed: int = 7,
 ) -> tuple[float, int]:
     """IQAE-estimate P(loss bucket >= threshold_idx). Returns (p, queries)."""
