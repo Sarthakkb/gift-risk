@@ -27,6 +27,7 @@ from src.aws_services import (
     generate_portfolio_briefing,
     generate_risk_commentary,
     load_metadata,
+    load_position_csv,
 )
 from src.benchmark import plot_benchmark
 import src.fcnr as fcnr
@@ -220,6 +221,174 @@ def compute_impacts(portfolio: dict, fcnr_notional: float) -> pd.DataFrame:
 
 
 impacts = compute_impacts(st.session_state.portfolio, st.session_state.fcnr["notional"])
+agg = (
+    impacts.groupby(["theme_key", "theme_name", "severity_label"])
+    .agg(total_pnl=("pnl_usd", "sum"))
+    .reset_index()
+)
+worst = agg.loc[agg["total_pnl"].idxmin()]
+gap_rows = (
+    impacts[(impacts["fcnr_in_scope"]) & (impacts["fcnr_gap"] > 0)]
+    .drop_duplicates(subset=["theme_key", "severity_label"])
+    .sort_values("fcnr_gap", ascending=False)
+)
+
+# ============================================================ SECTION 1.5
+st.subheader("VaR Limit Utilization")
+st.caption(
+    "Daily 95% VaR against configurable limits — baseline (ordinary "
+    "conditions) vs. this book's own worst-case variant in the shock ladder."
+)
+VAR_LIMIT_DEFAULTS = {"USD/INR": 400_000, "SGD/INR": 200_000, "AED/INR": 150_000}
+PORTFOLIO_VAR_LIMIT_DEFAULT = 650_000
+
+if "var_limits" not in st.session_state:
+    st.session_state.var_limits = dict(VAR_LIMIT_DEFAULTS)
+if "portfolio_var_limit" not in st.session_state:
+    st.session_state.portfolio_var_limit = PORTFOLIO_VAR_LIMIT_DEFAULT
+
+
+def _limit_status(used: float, limit: float) -> tuple[str, str]:
+    pct = used / limit if limit > 0 else 0.0
+    if pct < 0.70:
+        return "🟢", "normal"
+    elif pct < 0.90:
+        return "🟡", "warning"
+    return "🔴", "error"
+
+
+limit_cols = st.columns(4)
+var_usage = {}
+for col, pair in zip(limit_cols[:3], PAIRS):
+    with col:
+        limit = st.number_input(
+            f"{pair} VaR limit (USD)", min_value=10_000,
+            value=st.session_state.var_limits[pair], step=10_000,
+            key=f"varlimit_{pair}",
+        )
+        st.session_state.var_limits[pair] = limit
+        notional = st.session_state.portfolio[pair]["notional"]
+        base_usd = baseline_var[pair] * notional
+        worst_usd = impacts[impacts["pair"] == pair]["quantum_var_pct"].max() * notional
+        icon, level = _limit_status(worst_usd, limit)
+        st.progress(min(worst_usd / limit, 1.0), text=f"{icon} worst-case {worst_usd/limit:.0%} of limit")
+        st.caption(f"Baseline: ${base_usd:,.0f} ({base_usd/limit:.0%})  |  Worst-case: ${worst_usd:,.0f}")
+
+with limit_cols[3]:
+    p_limit = st.number_input(
+        "Portfolio VaR limit (USD)", min_value=50_000,
+        value=st.session_state.portfolio_var_limit, step=50_000,
+        key="varlimit_portfolio",
+    )
+    st.session_state.portfolio_var_limit = p_limit
+    base_total = sum(baseline_var[p] * st.session_state.portfolio[p]["notional"] for p in PAIRS)
+    worst_total = -worst["total_pnl"]  # most stressed scenario's aggregate loss
+    icon, level = _limit_status(worst_total, p_limit)
+    st.progress(min(worst_total / p_limit, 1.0), text=f"{icon} worst-case {worst_total/p_limit:.0%} of limit")
+    st.caption(f"Baseline: ${base_total:,.0f} ({base_total/p_limit:.0%})  |  Worst-case: ${worst_total:,.0f}")
+
+st.divider()
+
+# ============================================================ SECTION 1.6
+st.subheader("Unified Risk Alerts")
+st.caption("Hedge drift flags, VaR limit breaches, and FCNR funding gaps in one feed — most severe and most recent first.")
+
+_now = datetime.datetime.now()
+alerts = []
+
+# (a) hedge drift flags from the trade blotter
+_drift_sorted = impacts[impacts["action_required"]].sort_values("drift", key=lambda s: s.abs(), ascending=False)
+for i, (_, r) in enumerate(_drift_sorted.iterrows()):
+    sev = "critical" if abs(r["drift"]) > 0.15 else "warning"
+    alerts.append({
+        "ts": _now - datetime.timedelta(minutes=2 * i),
+        "severity": sev,
+        "message": f"Hedge drift {r['drift']:+.0%} on {r['pair']} under {r['theme_name']} — {r['severity_label']}",
+    })
+
+# (b) VaR limit breaches (baseline and worst-case, per pair + portfolio)
+for pair in PAIRS:
+    notional = st.session_state.portfolio[pair]["notional"]
+    limit = st.session_state.var_limits[pair]
+    worst_usd = impacts[impacts["pair"] == pair]["quantum_var_pct"].max() * notional
+    pct = worst_usd / limit if limit else 0
+    if pct > 0.70:
+        worst_row = impacts[impacts["pair"] == pair].sort_values("quantum_var_pct", ascending=False).iloc[0]
+        alerts.append({
+            "ts": _now - datetime.timedelta(minutes=5),
+            "severity": "critical" if pct > 0.90 else "warning",
+            "message": f"{pair} VaR limit at {pct:.0%} under {worst_row['theme_name']} — {worst_row['severity_label']}",
+        })
+p_pct = worst_total / p_limit if p_limit else 0
+if p_pct > 0.70:
+    alerts.append({
+        "ts": _now - datetime.timedelta(minutes=1),
+        "severity": "critical" if p_pct > 0.90 else "warning",
+        "message": f"Portfolio VaR limit at {p_pct:.0%} under {worst['theme_name']} — {worst['severity_label']}",
+    })
+
+# (c) FCNR funding gap warnings
+for i, (_, r) in enumerate(gap_rows.iterrows()):
+    alerts.append({
+        "ts": _now - datetime.timedelta(minutes=10 + 3 * i),
+        "severity": "critical" if r["fcnr_gap"] > 50_000_000 else "warning",
+        "message": f"FCNR funding gap of ${r['fcnr_gap']/1e6:.0f}M under {r['severity_label']} ({r['theme_name']})",
+    })
+
+_sev_rank = {"critical": 0, "warning": 1, "info": 2}
+alerts.sort(key=lambda a: (_sev_rank[a["severity"]], -a["ts"].timestamp()))
+
+_icon = {"critical": "🔴", "warning": "🟡", "info": "🔵"}
+with st.container(height=260, border=True):
+    if not alerts:
+        st.success("No alerts — all limits, hedges, and funding gaps within tolerance.")
+    for a in alerts[:40]:
+        st.markdown(f"{_icon[a['severity']]} `{a['ts']:%H:%M:%S}` **{a['severity'].upper()}** — {a['message']}")
+
+st.divider()
+
+# ============================================================ SECTION 1.7
+st.subheader("Currency Correlation Matrix")
+st.caption("Pearson correlation between the three synthetic daily return series.")
+
+
+@st.cache_data(show_spinner=False)
+def _load_return_series():
+    series = {}
+    for pair in PAIRS:
+        df, _ = load_position_csv(pair)
+        series[pair] = df["log_return"].to_numpy()
+    return pd.DataFrame(series)
+
+
+returns_df = _load_return_series()
+corr = returns_df.corr()
+corr_styled = corr.style.background_gradient(cmap="RdBu_r", vmin=-1, vmax=1).format("{:.2f}")
+st.dataframe(corr_styled, width=420)
+
+diag_mask = pd.DataFrame(
+    [[i == j for j in range(len(PAIRS))] for i in range(len(PAIRS))],
+    index=corr.index, columns=corr.columns,
+)
+off_diag = corr.mask(diag_mask)
+strongest_pair = off_diag.abs().stack().idxmax()
+strongest_val = corr.loc[strongest_pair]
+st.caption(
+    f"Highest pairwise correlation: **{strongest_pair[0]} / {strongest_pair[1]}** "
+    f"at {strongest_val:+.2f} — "
+    + ("high positive correlation suggests limited diversification benefit under simultaneous shocks."
+       if strongest_val > 0.3 else
+       "correlation is modest, so a shock to one book doesn't strongly imply the same move in another.")
+)
+st.caption(
+    "Note: the three return series are generated independently (different "
+    "random seeds), so low correlation here reflects the synthetic data "
+    "construction, not a real market finding — the shock ladder's shared "
+    "vol/mean parameters per theme are what actually correlate the books "
+    "under stress, not their baseline daily returns."
+)
+
+st.divider()
 
 # ============================================================ SECTION 2
 st.subheader("Progressive Shock Heatmap")
@@ -339,13 +508,6 @@ st.divider()
 # ============================================================ SECTION 3
 col_blotter, col_stress = st.columns([2, 1])
 
-agg = (
-    impacts.groupby(["theme_key", "theme_name", "severity_label"])
-    .agg(total_pnl=("pnl_usd", "sum"))
-    .reset_index()
-)
-worst = agg.loc[agg["total_pnl"].idxmin()]
-
 with col_stress:
     st.subheader("Most Stressed Scenario")
     st.error(
@@ -364,15 +526,6 @@ with col_blotter:
     blotter = impacts[impacts["action_required"]].copy()
     blotter["abs_drift"] = blotter["drift"].abs()
     blotter = blotter.sort_values("abs_drift", ascending=False)
-
-    # funding-gap warnings, one per (fed_rate/sovereign_spread) variant with
-    # a positive gap — deduped across the 3 pairs since the gap is
-    # portfolio-wide, not per-pair
-    gap_rows = (
-        impacts[(impacts["fcnr_in_scope"]) & (impacts["fcnr_gap"] > 0)]
-        .drop_duplicates(subset=["theme_key", "severity_label"])
-        .sort_values("fcnr_gap", ascending=False)
-    )
 
     if blotter.empty and gap_rows.empty:
         st.success("No trades or funding gaps flagged across the current shock ladder.")
