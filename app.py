@@ -1193,10 +1193,17 @@ with tab_quantum:
         ax_q1.set_xscale("log")
         ax_q1.set_yscale("log")
         ax_q1.invert_xaxis()
+        # explicit ticks at the actual measured epsilon values — the default
+        # log-scale ticks only land on powers of 10, which leaves 4 of the 6
+        # data points with no x-axis reference at all
+        eps_vals = bench_df["epsilon"].to_numpy()
+        ax_q1.set_xticks(eps_vals)
+        ax_q1.set_xticklabels([f"{e:g}" for e in eps_vals], rotation=40, ha="right")
+        ax_q1.minorticks_off()
         ax_q1.set_xlabel("target error ε")
         ax_q1.set_ylabel("samples / queries")
         ax_q1.legend()
-        ax_q1.grid(True, which="both", alpha=0.25)
+        ax_q1.grid(True, which="major", alpha=0.25)
         fig_q1.tight_layout()
         st.pyplot(fig_q1)
 
@@ -1212,22 +1219,58 @@ with tab_quantum:
         fig_q2.tight_layout()
         st.pyplot(fig_q2)
 
-    fig_q3, ax_q3 = plt.subplots(figsize=(12, 2.2))
+    fig_q3, ax_q3 = plt.subplots(figsize=(12, 2.6))
     ax_q3.axis("off")
     boxes = [
-        (0.02, "Synthetic\nFX data"),
-        (0.22, "Classical\nMonte Carlo"),
-        (0.42, "Quantum\nIQAE (Aer)"),
-        (0.62, "95% VaR\n(classical + quantum)"),
-        (0.82, "Hedge &\ntrade engine"),
+        (0.01, 0.5, 0.13, "Synthetic\nFX data"),
+        (0.20, 0.5, 0.13, "Classical\nMonte Carlo"),
+        (0.39, 0.72, 0.14, "Quantum IQAE\n(Qiskit Aer)"),
+        (0.39, 0.28, 0.14, "Quantum MLAE\n(Amazon Braket)"),
+        (0.60, 0.5, 0.15, "95% VaR\n(cross-validated)"),
+        (0.81, 0.5, 0.14, "Hedge &\ntrade engine"),
     ]
-    for x, label in boxes:
-        ax_q3.add_patch(plt.Rectangle((x, 0.2), 0.14, 0.6, facecolor="#FFFFFF", edgecolor="#0E7A90", linewidth=1.5))
-        ax_q3.text(x + 0.07, 0.5, label, ha="center", va="center", fontsize=9, color="#16233D")
-    for x1, x2 in zip([b[0] for b in boxes[:-1]], [b[0] for b in boxes[1:]]):
-        ax_q3.annotate("", xy=(x2, 0.5), xytext=(x1 + 0.14, 0.5),
+    for x, y, w, label in boxes:
+        edge = "#FF9900" if "Braket" in label else "#0E7A90"
+        ax_q3.add_patch(plt.Rectangle((x, y - 0.2), w, 0.4, facecolor="#FFFFFF", edgecolor=edge, linewidth=1.5))
+        ax_q3.text(x + w / 2, y, label, ha="center", va="center", fontsize=9, color="#16233D")
+    arrows = [
+        ((0.01, 0.5, 0.13), (0.20, 0.5, 0.13)),
+        ((0.20, 0.5, 0.13), (0.39, 0.72, 0.14)),
+        ((0.20, 0.5, 0.13), (0.39, 0.28, 0.14)),
+        ((0.39, 0.72, 0.14), (0.60, 0.5, 0.15)),
+        ((0.39, 0.28, 0.14), (0.60, 0.5, 0.15)),
+        ((0.60, 0.5, 0.15), (0.81, 0.5, 0.14)),
+    ]
+    for (x1, y1, w1), (x2, y2, w2) in arrows:
+        ax_q3.annotate("", xy=(x2, y2), xytext=(x1 + w1, y1),
                        arrowprops=dict(arrowstyle="->", color="#93A0B8", lw=1.5))
     ax_q3.set_xlim(0, 1)
     ax_q3.set_ylim(0, 1)
     fig_q3.tight_layout()
     st.pyplot(fig_q3)
+
+    braket_path = DATA_DIR / "braket_comparison.json"
+    if braket_path.exists():
+        braket_data = json.loads(braket_path.read_text())
+        cv_labels = ["Classical\nMonte Carlo", "Quantum IQAE\n(Qiskit Aer)", "Quantum MLAE\n(Amazon Braket)"]
+        cv_values = [
+            braket_data["classical"]["var_pct"],
+            braket_data["qiskit_aer"]["var_pct"],
+            braket_data["braket_local"]["var_pct"],
+        ]
+        cv_colors = ["#2F4F8F", "#0E7A90", "#FF9900"]
+        fig_q4, ax_q4 = plt.subplots(figsize=(12, 3.2))
+        bars = ax_q4.bar(cv_labels, cv_values, color=cv_colors, width=0.5)
+        for bar, v in zip(bars, cv_values):
+            ax_q4.annotate(f"{v:.3%}", (bar.get_x() + bar.get_width() / 2, v),
+                           ha="center", va="bottom", fontsize=10, fontweight="bold")
+        span = max(cv_values) - min(cv_values)
+        ax_q4.set_ylim(min(cv_values) - span * 3, max(cv_values) + span * 3)
+        ax_q4.set_ylabel("95% VaR estimate")
+        ax_q4.set_title(
+            f"Independent cross-validation — {braket_data['pair']} under "
+            f"{braket_data['theme_name']} — {braket_data['severity_label']}",
+            fontsize=10,
+        )
+        fig_q4.tight_layout()
+        st.pyplot(fig_q4)

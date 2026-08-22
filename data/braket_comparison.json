@@ -1,0 +1,17 @@
+{
+  "pair": "USD/INR",
+  "theme_name": "GIFT City Liquidity",
+  "severity_label": "Extreme",
+  "classical": {
+    "var_pct": 0.044166326453679614,
+    "samples": 2000
+  },
+  "qiskit_aer": {
+    "var_pct": 0.045247068353559586,
+    "oracle_queries": 6016
+  },
+  "braket_local": {
+    "var_pct": 0.04530272433535086,
+    "oracle_queries": 8960
+  }
+}
