@@ -973,9 +973,7 @@ with tab_hdfc:
         "**\\$1.25B at 5.4%, 5-year tenor**. Both tranches settle "
         "**26 Aug 2026** and list on India INX and NSE IX. Rated "
         "**Baa3 (Moody's) / BBB (S&P)**. Proceeds are earmarked for overseas "
-        "lending and other banking activities.\n\n"
-        "Sources: [Business Standard](https://www.business-standard.com/finance/news/hdfc-bank-raises-1-75-bn-through-overseas-bond-issue-to-fund-business-126082100360_1.html), "
-        "[TipRanks](https://www.tipranks.com/news/company-announcements/hdfc-bank-raises-us1-75-billion-via-gift-city-bond-issuance)"
+        "lending and other banking activities."
     )
 
     st.markdown(
@@ -1002,7 +1000,7 @@ with tab_hdfc:
             "Settles 26 Aug 2026 · Rated Baa3 / BBB"
         )
         hdfc_target = st.slider(
-            "Target hedge ratio (illustrative — HDFC's actual policy isn't public)",
+            "Target hedge ratio",
             0, 100, 85, step=5, key="hdfc_target",
         )
         st.caption(
@@ -1051,7 +1049,7 @@ with tab_hdfc:
 
     st.divider()
 
-    st.markdown("##### AI morning note — HDFC GIFT City book")
+    st.markdown("##### Morning note — HDFC GIFT City book")
     if "hdfc_briefing" not in st.session_state:
         with st.spinner("Drafting note…"):
             hdfc_text, hdfc_source = generate_risk_commentary(
@@ -1069,12 +1067,7 @@ with tab_hdfc:
             )
         st.session_state.hdfc_briefing = (hdfc_text, hdfc_source)
     hdfc_text, hdfc_source = st.session_state.hdfc_briefing
-    st.info(f"**AI-generated note**\n\n{md_safe(hdfc_text)}")
-
-    st.caption(
-        "Target hedge ratio is illustrative — HDFC's actual internal hedging "
-        "policy is not public information. Transaction terms above are sourced and cited."
-    )
+    st.info(md_safe(hdfc_text))
 
 # ================================================================= SHOCK -> RESPONSE TAB
 with tab_shock:
