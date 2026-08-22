@@ -61,23 +61,77 @@ st.markdown(
     code, .stMetric [data-testid="stMetricValue"], .stDataFrame, .stNumberInput input, .stSlider {
         font-family: 'JetBrains Mono', monospace;
     }
-    [data-testid="stMetricValue"] { color: #16233D; }
+    [data-testid="stMetricValue"] { color: #16233D; font-variant-numeric: tabular-nums; }
+    [data-testid="stMetricLabel"] { color: #5C6B85; }
     .stTabs [data-baseweb="tab-list"] { gap: 4px; }
     .stTabs [data-baseweb="tab"] { font-weight: 600; }
-    h1, h2, h3 { font-weight: 800 !important; color: #16233D; }
+    h1, h2, h3 { font-weight: 800 !important; color: #16233D; letter-spacing: -0.01em; }
+
+    /* v5 "card" treatment for bordered containers, dataframes, alerts, expanders */
+    [data-testid="stVerticalBlockBorderWrapper"],
+    [data-testid="stExpander"],
+    [data-testid="stDataFrame"],
+    .stAlert {
+        border-radius: 12px !important;
+        border: 1px solid #DCE3EC !important;
+        box-shadow: 0 1px 2px rgba(22,35,61,0.04), 0 4px 14px rgba(22,35,61,0.05);
+    }
+    .stProgress > div > div { border-radius: 6px !important; }
+    .stProgress > div > div > div { border-radius: 6px !important; }
+
+    /* masthead */
+    .gr-masthead {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 4px 0 18px 0; border-bottom: 1px solid #DCE3EC; margin-bottom: 18px;
+    }
+    .gr-masthead-left { display: flex; align-items: center; gap: 13px; }
+    .gr-logo {
+        width: 42px; height: 42px; border-radius: 10px; background: #16233D;
+        display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .gr-title { font-size: 22px; font-weight: 800; letter-spacing: -0.01em; color: #16233D; line-height: 1.2; }
+    .gr-subtitle { font-size: 12px; color: #5C6B85; margin-top: 1px; }
+    .gr-masthead-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+    .gr-live { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: #5C6B85; }
+    .gr-live-dot {
+        width: 6px; height: 6px; border-radius: 50%; background: #157F3C;
+        animation: gr-pulse 2.2s ease-in-out infinite; display: inline-block;
+    }
+    .gr-timestamp { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #5C6B85; }
+    @keyframes gr-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .4; } }
     </style>
     """,
     unsafe_allow_html=True,
 )
 
 # ------------------------------------------------------------------ header
-st.title("GIFT Risk — FX Treasury Dashboard")
-st.caption("GIFT IFSC | Quantum-Accelerated Tail Risk")
+st.markdown(
+    f"""
+    <div class="gr-masthead">
+      <div class="gr-masthead-left">
+        <div class="gr-logo">
+          <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="#5FD4C4"
+               stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 19V9l8-5 8 5v10"/><path d="M9 19v-6h6v6"/><path d="M4 12l8-5 8 5"/>
+          </svg>
+        </div>
+        <div>
+          <div class="gr-title">GIFT Risk</div>
+          <div class="gr-subtitle">FX Treasury Dashboard &middot; GIFT IFSC &middot; Quantum-Accelerated Tail Risk</div>
+        </div>
+      </div>
+      <div class="gr-masthead-right">
+        <div class="gr-live"><span class="gr-live-dot"></span>Live session</div>
+        <div class="gr-timestamp">{datetime.datetime.now():%a &middot; %d %b %Y, %H:%M}</div>
+      </div>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 st.warning(
     "Synthetic data. Quantum circuit on simulator. Not financial advice.",
     icon="⚠️",
 )
-st.caption(f"Last updated: {datetime.datetime.now():%A, %d %b %Y — %H:%M} (session load)")
 
 
 tab_dashboard, tab_hdfc, tab_shock, tab_quantum = st.tabs([
@@ -223,8 +277,12 @@ with tab_dashboard:
     for col, pair in zip(cols, PAIRS):
         meta = meta_all[pair]
         cfg = st.session_state.portfolio[pair]
-        with col:
-            st.markdown(f"**{pair}** — {meta['entity_name']}")
+        with col, st.container(border=True):
+            st.markdown(
+                f"<span class='mono' style='font-size:15px; font-weight:700; color:#2F4F8F;'>{pair}</span>"
+                f"<br><span style='font-size:11px; color:#5C6B85;'>{meta['entity_name']}</span>",
+                unsafe_allow_html=True,
+            )
             st.caption(meta["desk_name"])
             notional = st.number_input(
                 "Notional (USD)", min_value=100_000, value=cfg["notional"],
@@ -334,7 +392,7 @@ with tab_dashboard:
     limit_cols = st.columns(4)
     var_usage = {}
     for col, pair in zip(limit_cols[:3], PAIRS):
-        with col:
+        with col, st.container(border=True):
             limit = st.number_input(
                 f"{pair} VaR limit (USD)", min_value=10_000,
                 value=st.session_state.var_limits[pair], step=10_000,
@@ -348,7 +406,7 @@ with tab_dashboard:
             st.progress(min(worst_usd / limit, 1.0), text=f"{icon} worst-case {worst_usd/limit:.0%} of limit")
             st.caption(f"Baseline: \\${base_usd:,.0f} ({base_usd/limit:.0%})  |  Worst-case: \\${worst_usd:,.0f}")
 
-    with limit_cols[3]:
+    with limit_cols[3], st.container(border=True):
         p_limit = st.number_input(
             "Portfolio VaR limit (USD)", min_value=50_000,
             value=st.session_state.portfolio_var_limit, step=50_000,
