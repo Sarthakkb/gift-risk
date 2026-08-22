@@ -128,9 +128,11 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
-st.warning(
-    "Synthetic data. Quantum circuit on simulator. Not financial advice.",
-    icon="⚠️",
+st.markdown(
+    "<div style='font-size:10.5px; color:#93A0B8; margin:-6px 0 16px 0;'>"
+    "Synthetic data &middot; quantum circuit on simulator &middot; not financial advice"
+    "</div>",
+    unsafe_allow_html=True,
 )
 
 
