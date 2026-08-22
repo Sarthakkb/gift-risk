@@ -706,6 +706,41 @@ st.info(f"**{label}**\n\n{briefing_text}")
 
 st.divider()
 
+# ============================================================ SECTION 5.5
+st.subheader("Hedge & Funding Maturity Calendar")
+st.caption(
+    "Existing FX hedge tranches (mock, spread over the next 90 days) and "
+    "the real FCNR(B) regulatory deadlines, in one calendar."
+)
+
+_today = datetime.date.today()
+calendar_rows = []
+for pair in PAIRS:
+    cfg = st.session_state.portfolio[pair]
+    hedged_notional = cfg["notional"] * cfg["target_hedge_ratio"]
+    for i, days_out in enumerate([30, 60, 90]):
+        calendar_rows.append({
+            "Position": pair,
+            "Instrument": "1-month FX forward" if days_out == 30 else f"{days_out // 30}-month FX forward",
+            "Notional": hedged_notional / 3,
+            "Maturity / Deadline": _today + datetime.timedelta(days=days_out),
+        })
+calendar_rows.append({
+    "Position": "FCNR(B) Funding Book", "Instrument": "RBI swap mobilisation deadline",
+    "Notional": st.session_state.fcnr["notional"], "Maturity / Deadline": fcnr.MOBILISATION_DEADLINE,
+})
+calendar_rows.append({
+    "Position": "FCNR(B) Funding Book", "Instrument": "RBI swap unwind deadline",
+    "Notional": st.session_state.fcnr["notional"], "Maturity / Deadline": fcnr.SWAP_UNWIND_DEADLINE,
+})
+cal_df = pd.DataFrame(calendar_rows).sort_values("Maturity / Deadline")
+st.dataframe(
+    cal_df.style.format({"Notional": "${:,.0f}"}),
+    hide_index=True, width=720,
+)
+
+st.divider()
+
 # ============================================================ SECTION 6
 with st.expander("Quantum Methodology", expanded=False):
     st.markdown(
@@ -750,6 +785,70 @@ with st.expander("Quantum Methodology", expanded=False):
         st.pyplot(plot_benchmark(bench_df))
     else:
         st.caption("Benchmark data not found — run `python -m src.benchmark` to regenerate.")
+
+st.divider()
+
+# ============================================================ SECTION 7
+st.subheader("Export Morning Report")
+
+
+def _build_report_text() -> str:
+    lines = [
+        "GIFT RISK — MORNING REPORT",
+        f"{datetime.datetime.now():%A, %d %B %Y — %H:%M}",
+        "Synthetic data. Quantum circuit on simulator. Not financial advice.",
+        "",
+        "PORTFOLIO STATUS",
+    ]
+    for pair in PAIRS:
+        cfg = st.session_state.portfolio[pair]
+        worst_drift_p = impacts[impacts["pair"] == pair]["drift"].abs().max()
+        status_word = (
+            "ON TARGET" if worst_drift_p <= DEFAULT_DRIFT_THRESHOLD
+            else "WATCH" if worst_drift_p <= 0.15 else "REVIEW"
+        )
+        lines.append(
+            f"  {pair}: ${cfg['notional']:,.0f} notional, "
+            f"{cfg['target_hedge_ratio']:.0%} target hedge — {status_word} "
+            f"(max drift {worst_drift_p:+.0%})"
+        )
+    lines += [
+        "",
+        "FCNR(B) FUNDING BASE",
+        f"  ${st.session_state.fcnr['notional']:,.0f} raised, "
+        f"{st.session_state.fcnr['rate_paid']:.1%} paid, "
+        f"{st.session_state.fcnr['tenor_years']}yr tenor",
+        f"  Mobilisation deadline: 31 Aug 2026 ({status.days_to_mobilisation} days)",
+        f"  Swap unwind deadline: 11 Sep 2026 ({status.days_to_swap_unwind} days)",
+        "",
+        "TOP FLAGGED TRADES / GAPS",
+    ]
+    top_items = []
+    for _, r in blotter.head(3).iterrows():
+        top_items.append((r["abs_drift"], f"  TRADE: {r['trade_text'].splitlines()[0]} "
+                                            f"— {r['theme_name']} / {r['severity_label']} (drift {r['drift']:+.0%})"))
+    for _, r in gap_rows.head(3).iterrows():
+        top_items.append((r["fcnr_gap"] / 1e8, f"  FUNDING GAP: ${r['fcnr_gap']/1e6:.0f}M — "
+                                                 f"{r['theme_name']} / {r['severity_label']}"))
+    top_items.sort(key=lambda t: t[0], reverse=True)
+    if top_items:
+        lines += [item[1] for item in top_items[:3]]
+    else:
+        lines.append("  None — all within tolerance.")
+    lines += [
+        "",
+        "AI MORNING RISK BRIEFING",
+        f"  {briefing_text}",
+    ]
+    return "\n".join(lines)
+
+
+st.download_button(
+    "Download morning report (.txt)",
+    data=_build_report_text(),
+    file_name=f"GIFT_Risk_Morning_Report_{datetime.date.today():%Y-%m-%d}.txt",
+    mime="text/plain",
+)
 
 st.caption(
     "GIFT Risk is a hackathon prototype (Track 2 — Quantum Tech in Financial Services). "
