@@ -3,13 +3,25 @@
 **Track 2 (Quantum Tech in Financial Services) · Focus: Risk Analysis & Derivatives Pricing via Quantum Amplitude Estimation**
 
 A morning FX treasury dashboard for a GIFT IFSC IBU treasury officer: open it
-and immediately see how a 3-book portfolio (USD/INR, SGD/INR, AED/INR) moves
-under a ladder of 9 macro shock themes (~43 severity variants), and exactly
-what FX forward trades are needed today to hold each book's target hedge
-ratio. Quantum amplitude estimation (Qiskit Aer IQAE) feeds the risk numbers
-in the background — it's supporting infrastructure, not the primary
-interface. There is no manual scenario picker: everything computes and
-renders on load.
+and immediately see how a 3-book portfolio (USD/INR, SGD/INR, AED/INR) —
+plus a $300M FCNR(B) funding book — moves under a ladder of 9 macro shock
+themes (~43 severity variants), and exactly what FX forward trades are
+needed today to hold each book's target hedge ratio. Quantum amplitude
+estimation (Qiskit Aer IQAE) feeds the risk numbers in the background — it's
+supporting infrastructure, not the primary interface. There is no manual
+scenario picker: everything computes and renders on load.
+
+**Full feature set:** FX spot/forward rate ticker · FCNR(B) funding base
+with a live countdown to RBI's real swap-window deadline · portfolio position
+cards with hedge-drift status · VaR limit gauges (per-pair + portfolio,
+baseline vs. worst-case) · a unified risk alerts feed (hedge drift + VaR
+breaches + funding gaps, one sorted list) · a 3×3 currency correlation matrix
+· a 43-row progressive shock heatmap with click-to-expand detail · a trade
+blotter with FCNR funding-gap warnings · portfolio stress summary · P&L
+attribution waterfall · a 30-day VaR trend · an AI morning briefing (Bedrock)
+· a hedge & funding maturity calendar · a downloadable morning report · and
+a collapsible quantum methodology section with the real classical-vs-quantum
+benchmark.
 
 ## Core thesis
 
@@ -70,14 +82,20 @@ data (synthetic FX returns + Faker metadata, S3 w/ local fallback)
                          (reuses hedge.py's buy/sell direction logic)
   → hedge.py             payable/receivable buy-vs-sell direction logic,
                          shared by portfolio.py
+  → fcnr.py              FCNR(B) funding book: real RBI swap-window dates,
+                         retention-multiplier model (scoped to 2 themes),
+                         funding-gap and post-window hedging-cost formulas
   → benchmark.py         measured samples vs. oracle queries across ε sweep
   → aws_services.py      S3 loading · Bedrock (Claude Opus 5) commentary,
                          both per-cell and portfolio-level morning briefing
   → isolate.py           quantum compute runs in a spawned subprocess,
                          keeping native SDK code out of the UI process
-  → app.py               Streamlit dashboard — portfolio cards, shock
-                         heatmap, trade blotter, stress summary, AI
-                         morning briefing, quantum methodology
+  → app.py               Streamlit dashboard — rate ticker, FCNR funding
+                         base, portfolio cards, VaR limit gauges, unified
+                         alerts feed, correlation matrix, shock heatmap,
+                         trade blotter, stress summary, P&L waterfall,
+                         VaR trend, AI morning briefing, maturity calendar,
+                         report export, quantum methodology
 ```
 
 Both estimators target the *same* quantity — P(loss > threshold) on the same
@@ -161,6 +179,19 @@ from the single-position Hedge Ratio calculator in the previous build.
   the funding-gap/post-window-hedging-cost formulas are synthetic —
   illustrative math on top of the real RBI swap-window backdrop (dates,
   circular reference, and inflow figures are real and cited above).
+- FX spot/forward rates on the ticker: mock values built from the pipeline's
+  own synthetic spot levels plus a plausible rate-differential forward
+  premium — not a live market feed.
+- The hedge & funding maturity calendar's FX forward tranches (30/60/90-day)
+  are illustrative, sized off the current target hedge ratio — no real
+  forward-contract ledger exists behind them. The FCNR(B) deadline dates on
+  the same calendar ARE the real regulatory dates.
+- The 30-day VaR trend is a synthetic random walk around today's real
+  computed VaR level, explicitly labeled as such in the UI — not historical
+  data.
+- The correlation matrix reflects independently-seeded synthetic return
+  series (see the app's own caption on this) — the near-zero values are an
+  artifact of that construction, not a market finding.
 
 **Real (actually measured / actually running):**
 - The IQAE algorithm itself — genuine qiskit-algorithms implementation, real
