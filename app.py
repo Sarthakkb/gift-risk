@@ -39,6 +39,16 @@ from src.shocks import THEMES
 DATA_DIR = Path(__file__).resolve().parent / "data"
 PAIRS = ["USD/INR", "SGD/INR", "AED/INR"]
 
+
+def md_safe(text: str) -> str:
+    """Escape literal $ before handing dynamic text (LLM output, f-strings
+    with dollar amounts) to a markdown-rendering call. Streamlit's markdown
+    treats a $...$ pair as inline LaTeX math — with 2+ dollar amounts in one
+    block (very common in both our own f-strings and Bedrock's prose, e.g.
+    "roughly $194k... $105M of funding"), everything between the first and
+    second $ silently renders as a garbled math expression instead of text."""
+    return text.replace("$", "\\$")
+
 st.set_page_config(page_title="GIFT Risk", page_icon="🏦", layout="wide")
 
 # ------------------------------------------------------------------ header
@@ -314,7 +324,7 @@ with tab_dashboard:
             worst_usd = impacts[impacts["pair"] == pair]["quantum_var_pct"].max() * notional
             icon, level = _limit_status(worst_usd, limit)
             st.progress(min(worst_usd / limit, 1.0), text=f"{icon} worst-case {worst_usd/limit:.0%} of limit")
-            st.caption(f"Baseline: ${base_usd:,.0f} ({base_usd/limit:.0%})  |  Worst-case: ${worst_usd:,.0f}")
+            st.caption(f"Baseline: \\${base_usd:,.0f} ({base_usd/limit:.0%})  |  Worst-case: \\${worst_usd:,.0f}")
 
     with limit_cols[3]:
         p_limit = st.number_input(
@@ -327,7 +337,7 @@ with tab_dashboard:
         worst_total = -worst["total_pnl"]  # most stressed scenario's aggregate loss
         icon, level = _limit_status(worst_total, p_limit)
         st.progress(min(worst_total / p_limit, 1.0), text=f"{icon} worst-case {worst_total/p_limit:.0%} of limit")
-        st.caption(f"Baseline: ${base_total:,.0f} ({base_total/p_limit:.0%})  |  Worst-case: ${worst_total:,.0f}")
+        st.caption(f"Baseline: \\${base_total:,.0f} ({base_total/p_limit:.0%})  |  Worst-case: \\${worst_total:,.0f}")
 
     st.divider()
 
@@ -543,7 +553,7 @@ with tab_dashboard:
                 theme_key, sev, pair, r["quantum_var_pct"], r["narrative"], theme_name
             )
             label = "Bedrock · Claude Opus 5" if comm_source == "bedrock" else "Offline (Bedrock unavailable)"
-            st.info(f"**{label}** — not financial advice\n\n{commentary}")
+            st.info(f"**{label}** — not financial advice\n\n{md_safe(commentary)}")
 
     st.divider()
 
@@ -706,7 +716,7 @@ with tab_dashboard:
         if briefing_source == "bedrock"
         else "AI Morning Risk Briefing — offline template (Bedrock unavailable). Not financial advice."
     )
-    st.info(f"**{label}**\n\n{briefing_text}")
+    st.info(f"**{label}**\n\n{md_safe(briefing_text)}")
 
     st.divider()
 
@@ -872,8 +882,8 @@ with tab_hdfc:
 
     st.info(
         "**What actually happened, 21 Aug 2026:** HDFC Bank, through its GIFT "
-        "City IBU, priced **US$1.75 billion** in senior unsecured bonds — "
-        "**$500M at 5.159%, 3-year tenor** and **$1.25B at 5.4%, 5-year "
+        "City IBU, priced **US\\$1.75 billion** in senior unsecured bonds — "
+        "**\\$500M at 5.159%, 3-year tenor** and **\\$1.25B at 5.4%, 5-year "
         "tenor**. Both tranches settle **26 Aug 2026** and list on India INX "
         "and NSE IX. Rated **Baa3 (Moody's) / BBB (S&P)**. Proceeds are "
         "earmarked for overseas lending and other banking activities.\n\n"
@@ -918,9 +928,9 @@ with tab_hdfc:
             step=50_000_000, format="%d", key="hdfc_notional",
         )
         st.caption(
-            "Tranche A: $500M · 3yr · 5.159% coupon &nbsp;&middot;&nbsp; "
-            "Tranche B: $1.25B · 5yr · 5.4% coupon &nbsp;&middot;&nbsp; "
-            "Settles 26 Aug 2026 &nbsp;&middot;&nbsp; Rated Baa3 / BBB"
+            "Tranche A: \\$500M · 3yr · 5.159% coupon · "
+            "Tranche B: \\$1.25B · 5yr · 5.4% coupon · "
+            "Settles 26 Aug 2026 · Rated Baa3 / BBB"
         )
         hdfc_target = st.slider(
             "Target hedge ratio (illustrative — HDFC's actual policy isn't public)",
@@ -993,7 +1003,7 @@ with tab_hdfc:
     hdfc_label = (
         "Bedrock · Claude Opus 5" if hdfc_source == "bedrock" else "Offline template (Bedrock unavailable)"
     )
-    st.info(f"**{hdfc_label}** — not financial advice\n\n{hdfc_text}")
+    st.info(f"**{hdfc_label}** — not financial advice\n\n{md_safe(hdfc_text)}")
 
     st.caption(
         "Everything above this line reuses the exact same shock ladder, quantum-verified "
