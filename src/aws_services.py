@@ -58,6 +58,24 @@ def load_metadata() -> tuple[dict, str]:
 
 
 # ------------------------------------------------------------------ Bedrock
+def _invoke_bedrock(prompt: str) -> str:
+    """Shared Bedrock Converse call — Claude Opus 5, reasoning-aware parsing.
+    Raises on any failure; callers catch and fall back to an offline template.
+    """
+    import boto3
+
+    client = boto3.client("bedrock-runtime", region_name=REGION)
+    resp = client.converse(
+        modelId=BEDROCK_MODEL_ID,
+        messages=[{"role": "user", "content": [{"text": prompt}]}],
+        # Opus 5 spends tokens on a reasoning block before the text answer,
+        # so the budget must cover both
+        inferenceConfig={"maxTokens": 2000},
+    )
+    blocks = resp["output"]["message"]["content"]
+    return next(b["text"] for b in blocks if "text" in b).strip()
+
+
 _OFFLINE_TEMPLATE = (
     "[offline commentary — Bedrock unavailable] Under the '{scenario}' scenario, "
     "the {pair} book shows a 95% one-day VaR of {var_pct:.2%} "
@@ -99,24 +117,60 @@ def generate_risk_commentary(
         "All data is synthetic; do not add disclaimers, headers, or bullet points."
     )
     try:
-        import boto3
-
-        client = boto3.client("bedrock-runtime", region_name=REGION)
-        resp = client.converse(
-            modelId=BEDROCK_MODEL_ID,
-            messages=[{"role": "user", "content": [{"text": prompt}]}],
-            # Opus 5 spends tokens on a reasoning block before the text
-            # answer, so the budget must cover both
-            inferenceConfig={"maxTokens": 2000},
-        )
-        blocks = resp["output"]["message"]["content"]
-        text = next(b["text"] for b in blocks if "text" in b).strip()
-        return text, "bedrock"
+        return _invoke_bedrock(prompt), "bedrock"
     except Exception:
         return (
             _OFFLINE_TEMPLATE.format(
                 scenario=scenario_name, pair=pair, var_pct=var_estimate,
                 var_usd=var_usd, agree_txt=agree_txt, speedup=speedup,
+            ),
+            "offline",
+        )
+
+
+_PORTFOLIO_OFFLINE_TEMPLATE = (
+    "[offline briefing — Bedrock unavailable] The most stressed scenario today "
+    "is {worst_scenario}, driving an aggregate portfolio impact of {worst_pnl}. "
+    "{most_exposed_pair} carries the largest exposure. Highest-priority action: "
+    "{top_trade}. Reason: shock severities scale realistic macro moves through "
+    "a quantum-verified VaR pipeline, so today's ladder reflects genuine "
+    "tail-risk shape, not a single hand-picked scenario."
+)
+
+
+def generate_portfolio_briefing(
+    worst_scenario: str,
+    worst_pnl: str,
+    most_exposed_pair: str,
+    top_trade: str,
+) -> tuple[str, str]:
+    """Morning portfolio-level briefing (one call per session, not per cell).
+
+    Returns (text, source) where source is 'bedrock' or 'offline'.
+    """
+    prompt = (
+        "You are a treasury risk analyst at a GIFT IFSC (GIFT City, India) "
+        "banking unit, writing the opening paragraph of the morning risk "
+        "briefing for the desk head, covering the whole FX portfolio "
+        "(USD/INR, SGD/INR, AED/INR books) across a ladder of macro stress "
+        "scenarios computed overnight.\n\n"
+        f"Most stressed scenario today: {worst_scenario}\n"
+        f"Aggregate portfolio P&L impact of that scenario: {worst_pnl}\n"
+        f"Most exposed currency pair: {most_exposed_pair}\n"
+        f"Highest-priority trade recommendation: {top_trade}\n\n"
+        "Write 3-4 sentences covering: the largest portfolio risk, the most "
+        "exposed pair, the highest-priority trade, and one sentence on why "
+        "this matters now. Plain English for a desk head skimming before "
+        "the trading day starts. All data is synthetic; do not add "
+        "disclaimers, headers, or bullet points."
+    )
+    try:
+        return _invoke_bedrock(prompt), "bedrock"
+    except Exception:
+        return (
+            _PORTFOLIO_OFFLINE_TEMPLATE.format(
+                worst_scenario=worst_scenario, worst_pnl=worst_pnl,
+                most_exposed_pair=most_exposed_pair, top_trade=top_trade,
             ),
             "offline",
         )
