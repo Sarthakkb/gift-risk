@@ -251,8 +251,38 @@ with tab_dashboard:
     status = fcnr.fcnr_status()
     with fc2:
         if status.days_to_mobilisation >= 0:
-            st.metric("Days to mobilisation deadline", status.days_to_mobilisation,
-                       help="RBI swap window mobilisation deadline: 31 Aug 2026")
+            window_days = (fcnr.MOBILISATION_DEADLINE - datetime.date(2026, 6, 8)).days
+            frac_remaining = max(0.0, min(1.0, status.days_to_mobilisation / window_days))
+            radius = 58
+            circumference = 2 * 3.14159265 * radius
+            dash_offset = circumference * (1 - frac_remaining)
+            if frac_remaining > 0.5:
+                ring_color = "#157F3C"
+            elif frac_remaining > 0.15:
+                ring_color = "#B7791F"
+            else:
+                ring_color = "#C0362C"
+            st.markdown(
+                f"""
+                <div style="display:flex; flex-direction:column; align-items:center; margin-top:4px;">
+                  <svg width="120" height="120" viewBox="0 0 140 140">
+                    <circle cx="70" cy="70" r="{radius}" fill="none" stroke="#EEF2F7" stroke-width="12"/>
+                    <circle cx="70" cy="70" r="{radius}" fill="none" stroke="{ring_color}" stroke-width="12"
+                            stroke-linecap="round" stroke-dasharray="{circumference:.1f}"
+                            stroke-dashoffset="{dash_offset:.1f}" transform="rotate(-90 70 70)"/>
+                    <text x="70" y="64" text-anchor="middle" font-family="Plus Jakarta Sans" font-size="30"
+                          font-weight="800" fill="#16233D">{status.days_to_mobilisation}</text>
+                    <text x="70" y="84" text-anchor="middle" font-family="Plus Jakarta Sans" font-size="10"
+                          fill="#5C6B85">days left</text>
+                  </svg>
+                  <div style="font-size:11px; color:#5C6B85; text-align:center; margin-top:-2px;">
+                    to mobilisation deadline<br>
+                    <span class="mono" style="color:#16233D; font-weight:600;">31 Aug 2026</span>
+                  </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
         else:
             st.metric("Mobilisation window", "CLOSED", f"{-status.days_to_mobilisation}d ago")
         st.caption(f"Swap settlement deadline: 11 Sep 2026 ({status.days_to_swap_unwind}d)")
@@ -391,6 +421,23 @@ with tab_dashboard:
         return "🔴", "error"
 
 
+    _BADGE_COLORS = {
+        "normal": ("#157F3C", "#E3F3E8"),
+        "warning": ("#B7791F", "#FBF0DC"),
+        "error": ("#C0362C", "#FBE4E1"),
+    }
+
+    def _limit_badge(label: str, pct_of_limit: float, level: str) -> None:
+        color, bg = _BADGE_COLORS[level]
+        st.markdown(
+            f"<div style='display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;'>"
+            f"<span class='mono' style='font-size:14px; font-weight:700; color:#2F4F8F;'>{label}</span>"
+            f"<span style='font-size:10.5px; font-weight:700; color:{color}; background:{bg}; "
+            f"padding:2px 8px; border-radius:10px;'>{pct_of_limit:.0%} VaR</span>"
+            f"</div>",
+            unsafe_allow_html=True,
+        )
+
     limit_cols = st.columns(4)
     var_usage = {}
     for col, pair in zip(limit_cols[:3], PAIRS):
@@ -405,6 +452,7 @@ with tab_dashboard:
             base_usd = baseline_var[pair] * notional
             worst_usd = impacts[impacts["pair"] == pair]["quantum_var_pct"].max() * notional
             icon, level = _limit_status(worst_usd, limit)
+            _limit_badge(pair, worst_usd / limit if limit else 0.0, level)
             st.progress(min(worst_usd / limit, 1.0), text=f"{icon} worst-case {worst_usd/limit:.0%} of limit")
             st.caption(f"Baseline: \\${base_usd:,.0f} ({base_usd/limit:.0%})  |  Worst-case: \\${worst_usd:,.0f}")
 
@@ -418,6 +466,7 @@ with tab_dashboard:
         base_total = sum(baseline_var[p] * st.session_state.portfolio[p]["notional"] for p in PAIRS)
         worst_total = -worst["total_pnl"]  # most stressed scenario's aggregate loss
         icon, level = _limit_status(worst_total, p_limit)
+        _limit_badge("Portfolio", worst_total / p_limit if p_limit else 0.0, level)
         st.progress(min(worst_total / p_limit, 1.0), text=f"{icon} worst-case {worst_total/p_limit:.0%} of limit")
         st.caption(f"Baseline: \\${base_total:,.0f} ({base_total/p_limit:.0%})  |  Worst-case: \\${worst_total:,.0f}")
 
