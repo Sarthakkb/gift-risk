@@ -1093,7 +1093,13 @@ with tab_hdfc:
 
     m1, m2, m3, m4 = st.columns(4)
     m1.metric("Baseline VaR (95%, 1-day)", f"${shock_baseline_var['USD/INR'] * hdfc_notional:,.0f}")
-    m2.metric("Worst-case scenario", f"{hdfc_worst['theme_name']} — {hdfc_worst['severity_label']}")
+    with m2:
+        st.markdown(
+            "<div style='font-size:13.5px; color:#5C6B85; margin-bottom:6px;'>Worst-case scenario</div>"
+            "<div style='font-size:15.5px; font-weight:700; color:#16233D; line-height:1.35;'>"
+            f"{hdfc_worst['theme_name']}<br>{hdfc_worst['severity_label']}</div>",
+            unsafe_allow_html=True,
+        )
     m3.metric("Worst-case impact", f"${hdfc_worst['pnl_usd']:,.0f}")
     m4.metric("Hedge drift (worst-case)", f"{hdfc_worst['drift']:+.0%}")
 
@@ -1102,10 +1108,75 @@ with tab_hdfc:
     else:
         st.success("No trade required at current target hedge ratio — worst case stays within drift tolerance.")
 
-    with st.expander("All 43 scenarios for this book"):
-        display_cols = hdfc_impacts[["theme_name", "severity_label", "classical_var_pct", "quantum_var_pct", "pnl_usd", "drift", "action_required"]].copy()
-        display_cols.columns = ["Theme", "Severity", "Classical VaR", "Quantum VaR", "P&L ($)", "Drift", "Action"]
-        st.dataframe(display_cols, hide_index=True, width="stretch")
+    st.divider()
+
+    st.markdown("##### Hedge ratio sensitivity — what the desk can decide from this")
+    st.caption(
+        "Worst-case impact across the full shock ladder, swept over candidate target "
+        "hedge ratios — shows where more hedging still buys real protection, and "
+        "where it stops mattering."
+    )
+    ratio_sweep = list(range(0, 101, 5))
+    sweep_worst = []
+    for r in ratio_sweep:
+        worst_r = None
+        for _, row in usd_rows.iterrows():
+            imp_r = shock_impact(
+                row["quantum_var_pct"], row["vol_multiplier"], r / 100.0,
+                hdfc_notional, "payable", "USD/INR",
+            )
+            if worst_r is None or imp_r.pnl_usd < worst_r:
+                worst_r = imp_r.pnl_usd
+        sweep_worst.append(worst_r)
+    sweep_df = pd.DataFrame({"ratio": ratio_sweep, "worst_pnl": sweep_worst})
+
+    with st.container(border=True):
+        fig_h, ax_h = plt.subplots(figsize=(11, 3.2))
+        ax_h.plot(sweep_df["ratio"], sweep_df["worst_pnl"], color="#0E7A90", linewidth=2.2)
+        ax_h.fill_between(sweep_df["ratio"], sweep_df["worst_pnl"], 0, color="#0E7A90", alpha=0.08)
+        ax_h.axhline(0, color="#93A0B8", linewidth=0.8)
+        ax_h.axvline(hdfc_target, color="#C0362C", linestyle="--", linewidth=1.3)
+        cur_idx = (sweep_df["ratio"] - hdfc_target).abs().idxmin()
+        cur_val = sweep_df.loc[cur_idx, "worst_pnl"]
+        ax_h.annotate(
+            f"current target: {hdfc_target}%\n${cur_val:,.0f}", (hdfc_target, cur_val),
+            textcoords="offset points", xytext=(12, 12), fontsize=9.5,
+            color="#C0362C", fontweight="bold",
+        )
+        ax_h.set_xlabel("Target hedge ratio")
+        ax_h.set_ylabel("Worst-case P&L impact (USD)")
+        for spine in ("top", "right"):
+            ax_h.spines[spine].set_visible(False)
+        ax_h.grid(True, alpha=0.2)
+        ax_h.set_axisbelow(True)
+        fig_h.tight_layout()
+        st.pyplot(fig_h)
+
+    st.divider()
+
+    st.markdown("##### All 43 scenarios for this book")
+    display_cols = hdfc_impacts[["theme_name", "severity_label", "classical_var_pct", "quantum_var_pct", "pnl_usd", "drift", "action_required"]].copy()
+    display_cols.columns = ["Theme", "Severity", "Classical VaR", "Quantum VaR", "P&L ($)", "Drift", "Action"]
+    display_cols["Action"] = display_cols["Action"].map({True: "⚑ Required", False: "—"})
+
+    def _style_pnl(col):
+        vmax = max(display_cols["P&L ($)"].abs().max(), 1.0)
+        styles = []
+        for v in col:
+            alpha = min(abs(v) / vmax, 1.0) * 0.35
+            rgb = "192,54,44" if v < 0 else "21,127,60"
+            styles.append(f"background-color: rgba({rgb},{alpha:.2f})")
+        return styles
+
+    styled_scenarios = (
+        display_cols.style
+        .apply(_style_pnl, subset=["P&L ($)"])
+        .format({
+            "Classical VaR": "{:.3%}", "Quantum VaR": "{:.3%}",
+            "P&L ($)": "${:,.0f}", "Drift": "{:+.0%}",
+        })
+    )
+    st.dataframe(styled_scenarios, hide_index=True, width="stretch", height=(len(display_cols) + 1) * 35)
 
     st.divider()
 
@@ -1185,11 +1256,19 @@ with tab_quantum:
     bench_path = DATA_DIR / "benchmark_results.csv"
     bench_df = pd.read_csv(bench_path)
 
+    plt.rcParams["font.family"] = "sans-serif"
+    plt.rcParams["axes.edgecolor"] = "#DCE3EC"
+    plt.rcParams["axes.labelcolor"] = "#16233D"
+    plt.rcParams["text.color"] = "#16233D"
+    plt.rcParams["xtick.color"] = "#5C6B85"
+    plt.rcParams["ytick.color"] = "#5C6B85"
+
     qc1, qc2 = st.columns(2)
-    with qc1:
-        fig_q1, ax_q1 = plt.subplots(figsize=(6, 4.5))
-        ax_q1.plot(bench_df["epsilon"], bench_df["classical_samples"], "o-", color="#2F4F8F", label="Classical MC")
-        ax_q1.plot(bench_df["epsilon"], bench_df["quantum_queries"], "s-", color="#0E7A90", label="Quantum IQAE")
+    with qc1, st.container(border=True):
+        st.caption("Resources needed to reach a target precision")
+        fig_q1, ax_q1 = plt.subplots(figsize=(6, 4.3))
+        ax_q1.plot(bench_df["epsilon"], bench_df["classical_samples"], "o-", color="#2F4F8F", label="Classical MC", linewidth=2, markersize=7)
+        ax_q1.plot(bench_df["epsilon"], bench_df["quantum_queries"], "s-", color="#0E7A90", label="Quantum IQAE", linewidth=2, markersize=7)
         ax_q1.set_xscale("log")
         ax_q1.set_yscale("log")
         ax_q1.invert_xaxis()
@@ -1198,56 +1277,66 @@ with tab_quantum:
         # data points with no x-axis reference at all
         eps_vals = bench_df["epsilon"].to_numpy()
         ax_q1.set_xticks(eps_vals)
-        ax_q1.set_xticklabels([f"{e:g}" for e in eps_vals], rotation=40, ha="right")
+        ax_q1.set_xticklabels([f"{e:g}" for e in eps_vals], fontsize=9)
         ax_q1.minorticks_off()
         ax_q1.set_xlabel("target error ε")
         ax_q1.set_ylabel("samples / queries")
-        ax_q1.legend()
-        ax_q1.grid(True, which="major", alpha=0.25)
+        ax_q1.legend(frameon=False)
+        ax_q1.grid(True, which="major", alpha=0.2)
+        for spine in ("top", "right"):
+            ax_q1.spines[spine].set_visible(False)
         fig_q1.tight_layout()
         st.pyplot(fig_q1)
 
-    with qc2:
-        fig_q2, ax_q2 = plt.subplots(figsize=(6, 4.5))
+    with qc2, st.container(border=True):
+        st.caption("Measured speedup vs. classical Monte Carlo")
+        fig_q2, ax_q2 = plt.subplots(figsize=(6, 4.3))
         colors_q = ["#C0362C" if s < 1 else "#157F3C" for s in bench_df["speedup"]]
-        ax_q2.bar([f"{e:g}" for e in bench_df["epsilon"]], bench_df["speedup"], color=colors_q)
-        ax_q2.axhline(1, color="black", linewidth=0.8)
+        ax_q2.bar([f"{e:g}" for e in bench_df["epsilon"]], bench_df["speedup"], color=colors_q, width=0.6)
+        ax_q2.axhline(1, color="#93A0B8", linewidth=1)
         ax_q2.set_xlabel("target error ε")
         ax_q2.set_ylabel("speedup (×)")
+        ax_q2.tick_params(axis="x", labelsize=9)
         for i, s in enumerate(bench_df["speedup"]):
-            ax_q2.annotate(f"{s:.1f}×", (i, s), ha="center", va="bottom", fontsize=9)
+            ax_q2.annotate(f"{s:.1f}×", (i, s), ha="center", va="bottom", fontsize=9, fontweight="bold")
+        for spine in ("top", "right"):
+            ax_q2.spines[spine].set_visible(False)
+        ax_q2.grid(True, axis="y", alpha=0.2)
+        ax_q2.set_axisbelow(True)
         fig_q2.tight_layout()
         st.pyplot(fig_q2)
 
-    fig_q3, ax_q3 = plt.subplots(figsize=(12, 2.6))
-    ax_q3.axis("off")
-    boxes = [
-        (0.01, 0.5, 0.13, "Synthetic\nFX data"),
-        (0.20, 0.5, 0.13, "Classical\nMonte Carlo"),
-        (0.39, 0.72, 0.14, "Quantum IQAE\n(Qiskit Aer)"),
-        (0.39, 0.28, 0.14, "Quantum MLAE\n(Amazon Braket)"),
-        (0.60, 0.5, 0.15, "95% VaR\n(cross-validated)"),
-        (0.81, 0.5, 0.14, "Hedge &\ntrade engine"),
-    ]
-    for x, y, w, label in boxes:
-        edge = "#FF9900" if "Braket" in label else "#0E7A90"
-        ax_q3.add_patch(plt.Rectangle((x, y - 0.2), w, 0.4, facecolor="#FFFFFF", edgecolor=edge, linewidth=1.5))
-        ax_q3.text(x + w / 2, y, label, ha="center", va="center", fontsize=9, color="#16233D")
-    arrows = [
-        ((0.01, 0.5, 0.13), (0.20, 0.5, 0.13)),
-        ((0.20, 0.5, 0.13), (0.39, 0.72, 0.14)),
-        ((0.20, 0.5, 0.13), (0.39, 0.28, 0.14)),
-        ((0.39, 0.72, 0.14), (0.60, 0.5, 0.15)),
-        ((0.39, 0.28, 0.14), (0.60, 0.5, 0.15)),
-        ((0.60, 0.5, 0.15), (0.81, 0.5, 0.14)),
-    ]
-    for (x1, y1, w1), (x2, y2, w2) in arrows:
-        ax_q3.annotate("", xy=(x2, y2), xytext=(x1 + w1, y1),
-                       arrowprops=dict(arrowstyle="->", color="#93A0B8", lw=1.5))
-    ax_q3.set_xlim(0, 1)
-    ax_q3.set_ylim(0, 1)
-    fig_q3.tight_layout()
-    st.pyplot(fig_q3)
+    with st.container(border=True):
+        st.caption("Pipeline: two independent quantum backends cross-check the same VaR")
+        fig_q3, ax_q3 = plt.subplots(figsize=(12, 2.6))
+        ax_q3.axis("off")
+        boxes = [
+            (0.01, 0.5, 0.13, "Synthetic\nFX data"),
+            (0.20, 0.5, 0.13, "Classical\nMonte Carlo"),
+            (0.39, 0.72, 0.14, "Quantum IQAE\n(Qiskit Aer)"),
+            (0.39, 0.28, 0.14, "Quantum MLAE\n(Amazon Braket)"),
+            (0.60, 0.5, 0.15, "95% VaR\n(cross-validated)"),
+            (0.81, 0.5, 0.14, "Hedge &\ntrade engine"),
+        ]
+        for x, y, w, label in boxes:
+            edge = "#FF9900" if "Braket" in label else "#0E7A90"
+            ax_q3.add_patch(plt.Rectangle((x, y - 0.2), w, 0.4, facecolor="#FFFFFF", edgecolor=edge, linewidth=1.5))
+            ax_q3.text(x + w / 2, y, label, ha="center", va="center", fontsize=9, color="#16233D")
+        arrows = [
+            ((0.01, 0.5, 0.13), (0.20, 0.5, 0.13)),
+            ((0.20, 0.5, 0.13), (0.39, 0.72, 0.14)),
+            ((0.20, 0.5, 0.13), (0.39, 0.28, 0.14)),
+            ((0.39, 0.72, 0.14), (0.60, 0.5, 0.15)),
+            ((0.39, 0.28, 0.14), (0.60, 0.5, 0.15)),
+            ((0.60, 0.5, 0.15), (0.81, 0.5, 0.14)),
+        ]
+        for (x1, y1, w1), (x2, y2, w2) in arrows:
+            ax_q3.annotate("", xy=(x2, y2), xytext=(x1 + w1, y1),
+                           arrowprops=dict(arrowstyle="->", color="#93A0B8", lw=1.5))
+        ax_q3.set_xlim(0, 1)
+        ax_q3.set_ylim(0, 1)
+        fig_q3.tight_layout()
+        st.pyplot(fig_q3)
 
     braket_path = DATA_DIR / "braket_comparison.json"
     if braket_path.exists():
@@ -1259,18 +1348,22 @@ with tab_quantum:
             braket_data["braket_local"]["var_pct"],
         ]
         cv_colors = ["#2F4F8F", "#0E7A90", "#FF9900"]
-        fig_q4, ax_q4 = plt.subplots(figsize=(12, 3.2))
-        bars = ax_q4.bar(cv_labels, cv_values, color=cv_colors, width=0.5)
-        for bar, v in zip(bars, cv_values):
-            ax_q4.annotate(f"{v:.3%}", (bar.get_x() + bar.get_width() / 2, v),
-                           ha="center", va="bottom", fontsize=10, fontweight="bold")
-        span = max(cv_values) - min(cv_values)
-        ax_q4.set_ylim(min(cv_values) - span * 3, max(cv_values) + span * 3)
-        ax_q4.set_ylabel("95% VaR estimate")
-        ax_q4.set_title(
-            f"Independent cross-validation — {braket_data['pair']} under "
-            f"{braket_data['theme_name']} — {braket_data['severity_label']}",
-            fontsize=10,
-        )
-        fig_q4.tight_layout()
-        st.pyplot(fig_q4)
+        with st.container(border=True):
+            st.caption(
+                f"Independent cross-validation — {braket_data['pair']} under "
+                f"{braket_data['theme_name']} — {braket_data['severity_label']}"
+            )
+            fig_q4, ax_q4 = plt.subplots(figsize=(12, 3.0))
+            bars = ax_q4.bar(cv_labels, cv_values, color=cv_colors, width=0.5)
+            for bar, v in zip(bars, cv_values):
+                ax_q4.annotate(f"{v:.3%}", (bar.get_x() + bar.get_width() / 2, v),
+                               ha="center", va="bottom", fontsize=10, fontweight="bold")
+            span = max(cv_values) - min(cv_values)
+            ax_q4.set_ylim(min(cv_values) - span * 3, max(cv_values) + span * 3)
+            ax_q4.set_ylabel("95% VaR estimate")
+            for spine in ("top", "right"):
+                ax_q4.spines[spine].set_visible(False)
+            ax_q4.grid(True, axis="y", alpha=0.2)
+            ax_q4.set_axisbelow(True)
+            fig_q4.tight_layout()
+            st.pyplot(fig_q4)
