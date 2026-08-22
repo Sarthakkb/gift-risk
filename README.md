@@ -2,12 +2,14 @@
 
 **Track 2 (Quantum Tech in Financial Services) · Focus: Risk Analysis & Derivatives Pricing via Quantum Amplitude Estimation**
 
-A risk intelligence tool for a treasury officer at a GIFT IFSC (GIFT City, India) IBU:
-daily 95% Value-at-Risk on cross-border FX positions — classical estimate,
-quantum-verified — stressed under 10 macro scenarios, with AI-generated
-morning-report commentary. A second tab turns that VaR into a decision: given
-a target hedge ratio, which FX forward to trade — direction and notional —
-to get there.
+A morning FX treasury dashboard for a GIFT IFSC IBU treasury officer: open it
+and immediately see how a 3-book portfolio (USD/INR, SGD/INR, AED/INR) moves
+under a ladder of 9 macro shock themes (~43 severity variants), and exactly
+what FX forward trades are needed today to hold each book's target hedge
+ratio. Quantum amplitude estimation (Qiskit Aer IQAE) feeds the risk numbers
+in the background — it's supporting infrastructure, not the primary
+interface. There is no manual scenario picker: everything computes and
+renders on load.
 
 ## Core thesis
 
@@ -35,57 +37,79 @@ cp .env.example .env        # add AWS credentials (optional — see fallbacks)
 Without AWS credentials everything still runs: data loads from local CSVs and
 commentary uses a clearly-labelled offline template.
 
-Regenerate data / benchmarks:
+Regenerate data / benchmarks / the shock-ladder cache:
 
 ```bash
 ./venv/bin/python -m src.generate_data
 ./venv/bin/python -m src.benchmark
+./venv/bin/python -c "from src.precompute_shocks import main; main()"
 ```
 
 ## Architecture
 
 ```
 data (synthetic FX returns + Faker metadata, S3 w/ local fallback)
-  → scenarios.py        10 macro stress transforms (vol / mean / skew / tails)
-  → classical_var.py    Monte Carlo VaR + samples-to-converge tracking
-  → quantum_var.py      distribution → 8-bucket amplitude encoding → IQAE
-                        (Qiskit Aer) → threshold sweep → 95% VaR
-  → braket_var.py       parallel Braket-native MLAE backend (LocalSimulator)
-  → benchmark.py        measured samples vs. oracle queries across ε sweep
-  → aws_services.py     S3 loading · Bedrock (Claude Opus 5) commentary
-  → isolate.py          quantum compute runs in a spawned subprocess,
-                        keeping native SDK code out of the UI process
-  → hedge.py            target hedge ratio → required FX forward trade
-                        (direction + notional) and the resulting VaR
-  → app.py              Streamlit dashboard: Risk Analysis + Hedge Ratio tabs
+  → shocks.py            9 macro themes x ~43 severity variants (the
+                         progressive shock ladder) — vol/mean/dist params
+  → scenarios.py         apply_stress(): the generic distribution-transform
+                         engine underneath every variant (vol / mean /
+                         skew / tails); apply_scenario() is the legacy
+                         10-scenario wrapper over the same engine, kept
+                         for reference, no longer driving the dashboard
+  → classical_var.py     Monte Carlo VaR + samples-to-converge tracking —
+                         run for REAL on all 129 (variant x pair) combos
+  → quantum_var.py       distribution → 8-bucket amplitude encoding → IQAE
+                         (Qiskit Aer) → threshold sweep → 95% VaR — run
+                         for REAL on 27 representative (theme x pair) combos
+  → precompute_shocks.py runs the 129 classical + 27 quantum combos ONCE,
+                         caches to data/shock_results.json so the live
+                         dashboard never blocks a judge's session on
+                         quantum compute
+  → portfolio.py         target hedge ratio → required hedge ratio given a
+                         shock's severity → drift → trade recommendation
+                         (reuses hedge.py's buy/sell direction logic)
+  → hedge.py             payable/receivable buy-vs-sell direction logic,
+                         shared by portfolio.py
+  → benchmark.py         measured samples vs. oracle queries across ε sweep
+  → aws_services.py      S3 loading · Bedrock (Claude Opus 5) commentary,
+                         both per-cell and portfolio-level morning briefing
+  → isolate.py           quantum compute runs in a spawned subprocess,
+                         keeping native SDK code out of the UI process
+  → app.py               Streamlit dashboard — portfolio cards, shock
+                         heatmap, trade blotter, stress summary, AI
+                         morning briefing, quantum methodology
 ```
 
 Both estimators target the *same* quantity — P(loss > threshold) on the same
 stressed distribution — so their resource counts are directly comparable.
 
-## Hedge Ratio tab
+## Progressive shock ladder & hedge engine
 
-Each position carries a synthetic exposure type (payable/receivable) and a
-current hedge ratio (existing forward cover), set alongside the Faker
-metadata. Given a target hedge ratio, `hedge.py` computes:
+Running IQAE on every one of the 43 severity variants × 3 pairs (129
+combinations) isn't worth doing on a simulator, so for each of the 9 themes,
+IQAE runs for real on ONE representative (middle-severity) variant, per
+currency pair — 27 real quantum runs. Every other variant's quantum VaR is
+that pair's representative quantum VaR scaled by the ratio of
+`vol_multiplier`s. Classical Monte Carlo VaR is cheap enough to run for real
+on all 129 combinations — no scaling there. This is disclosed in the
+dashboard's own "Quantum Methodology" section, not hidden.
 
-- **Direction**: a payable hedges by *buying* the foreign currency forward
-  (locking in a purchase rate) when increasing cover, *selling* when
-  unwinding; a receivable is the mirror image.
-- **Notional**: `|target − current| × position notional`.
-- **VaR impact**: hedged VaR scales linearly as `VaR × (1 − hedge ratio)` —
-  the disclosed simplifying assumption is a same-pair forward with 1-for-1
-  effectiveness and no basis risk. Real hedge accounting additionally needs
-  forward points/cost of carry, counterparty credit limits, and
-  mark-to-market on existing forwards.
+The hedge engine (`portfolio.py`) assumes each book starts the day hedged
+exactly at its target ratio, then asks: given this shock's severity
+(`vol_multiplier`, scaled linearly toward the ladder's most extreme
+variant), what hedge ratio would be needed to keep risk in check? The gap
+between that required ratio and the target is the "drift" — if it exceeds
+the threshold (default 5 points), a trade is recommended via `hedge.py`'s
+existing payable/receivable buy-vs-sell direction logic, reused unchanged
+from the single-position Hedge Ratio calculator in the previous build.
 
 ## AWS services used, and why
 
 | Service | Role | Why chosen |
 |---|---|---|
 | **S3** | Stores the synthetic position datasets; the app reads via boto3 with graceful local fallback | Mirrors how a real IBU risk stack would centralise position data; costs nothing to demo credibly |
-| **Braket** (LocalSimulator) | Alternative quantum execution backend beside Qiskit Aer, selectable in the UI | Shows the pipeline is not welded to one SDK — the same discretised distribution drives a Braket-native MLAE implementation, which is the migration path to managed QPUs when hardware matures |
-| **Bedrock — Claude Opus 5** | Turns each VaR result + scenario narrative into 2–3 sentences of morning-report commentary | The treasury officer's actual deliverable is a written morning report; an LLM with the scenario context drafts it. Labelled AI-generated, not financial advice |
+| **Braket** (LocalSimulator) | A parallel Braket-native MLAE backend (`braket_var.py`) exists in the codebase from the earlier single-scenario build, showing the pipeline isn't welded to one SDK — the current dashboard's precomputed cache uses Aer only | The migration path to managed QPUs when hardware matures |
+| **Bedrock — Claude Opus 5** | Two uses: a per-cell commentary when a heatmap cell is expanded, and one portfolio-level "AI Morning Risk Briefing" generated once per session | The treasury officer's actual deliverable is a written morning report; an LLM with the scenario context drafts it. Labelled AI-generated, not financial advice |
 
 ## What's synthetic/mocked vs. what's real
 
@@ -95,13 +119,15 @@ metadata. Given a target hedge ratio, `hedge.py` computes:
 - All position metadata: entity names, position IDs, desks, counterparties are
   Faker-generated. Any resemblance to real institutions is a byproduct of
   using real bank names as plausible GIFT City tenants — no real positions.
-- Stress scenarios: parameterised transforms designed by us, not calibrated
-  to historical episodes.
-- Quantum execution: **classical simulation** (Qiskit Aer, Braket
-  LocalSimulator). No QPU was used.
-- Hedge book state: exposure type and current hedge ratio per position are
-  hand-set synthetic parameters (like the scenarios), not read from any real
-  forward book or treasury management system.
+- The 43 shock-ladder severities: parameterised transforms designed by us,
+  not calibrated to historical episodes or a real risk model.
+- Quantum execution: **classical simulation** (Qiskit Aer). No QPU was used.
+- Portfolio state: notionals, target hedge ratios, and exposure types
+  (payable/receivable) per book are hand-set synthetic parameters, not read
+  from any real forward book or treasury management system.
+- The required-hedge-ratio formula (linear in `vol_multiplier` toward the
+  ladder's most extreme severity) is a modeling choice we designed to make
+  mild-vs-severe shocks discriminate cleanly, not an industry-standard model.
 
 **Real (actually measured / actually running):**
 - The IQAE algorithm itself — genuine qiskit-algorithms implementation, real
