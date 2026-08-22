@@ -164,45 +164,89 @@ SCENARIOS: dict[str, dict] = {
 }
 
 
-def apply_scenario(base_returns: np.ndarray, scenario_key: str, seed: int = 0) -> np.ndarray:
-    """Transform baseline daily returns into a scenario-stressed sample.
+# Default skew_adjustment / tail_weight by distribution_type, used when a
+# caller (e.g. src/shocks.py's progressive shock ladder) supplies only
+# vol_multiplier / mean_shift / distribution_type and leaves the finer skew
+# and tail parameters to sensible per-type defaults instead of hand-tuning
+# ~40+ variants individually.
+_DIST_TYPE_DEFAULTS = {
+    "normal": {"skew_adjustment": 0.0, "tail_weight": 0.0},
+    "skewed": {"skew_adjustment": -0.8, "tail_weight": 0.0},
+    "fat_tail": {"skew_adjustment": -0.5, "tail_weight": 0.03},
+    "bimodal": {"skew_adjustment": -0.5, "tail_weight": 0.03},
+}
 
-    The transform is applied deterministically per (scenario, seed) so the
-    classical and quantum engines see an identical stressed distribution.
+
+def apply_stress(
+    base_returns: np.ndarray,
+    vol_multiplier: float,
+    mean_shift: float,
+    distribution_type: str,
+    skew_adjustment: float | None = None,
+    tail_weight: float | None = None,
+    seed: int = 0,
+) -> np.ndarray:
+    """Generic stress transform — the engine underneath apply_scenario.
+
+    Takes explicit parameters rather than a SCENARIOS lookup key, so new
+    scenario sources (e.g. src/shocks.py's progressive shock ladder) can
+    reuse the same distribution machinery without going through the fixed
+    10-scenario config. skew_adjustment/tail_weight default per
+    distribution_type when not supplied (see _DIST_TYPE_DEFAULTS).
+
     Losses live in the LEFT tail (negative returns = P&L loss on the book).
     """
-    sc = SCENARIOS[scenario_key]
+    defaults = _DIST_TYPE_DEFAULTS.get(distribution_type, _DIST_TYPE_DEFAULTS["normal"])
+    if skew_adjustment is None:
+        skew_adjustment = defaults["skew_adjustment"]
+    if tail_weight is None:
+        tail_weight = defaults["tail_weight"]
+
     rng = np.random.default_rng(seed)
     r = base_returns.copy()
 
     # 1) scale dispersion around the mean, then shift the mean
     mu = r.mean()
-    r = mu + (r - mu) * sc["vol_multiplier"]
+    r = mu + (r - mu) * vol_multiplier
     # mean_shift is expressed as a DAILY shock to the return distribution,
     # scaled down to keep 1-day VaR magnitudes plausible (shock unfolds
     # over ~a week, so ~1/5 hits the 1-day horizon)
-    r = r + sc["mean_shift"] / 5.0
+    r = r + mean_shift / 5.0
 
     # 2) skew adjustment: exponential-tilt the left side
-    if sc["skew_adjustment"] != 0.0:
+    if skew_adjustment != 0.0:
         sigma = r.std()
         left = r < r.mean()
-        r[left] = r[left] + sc["skew_adjustment"] * 0.08 * sigma * np.abs(
+        r[left] = r[left] + skew_adjustment * 0.08 * sigma * np.abs(
             (r[left] - r.mean()) / sigma
         )
 
     # 3) tail_weight: replace a fraction of points with extreme left-tail draws
-    if sc["tail_weight"] > 0.0:
-        n_tail = int(len(r) * sc["tail_weight"])
+    if tail_weight > 0.0:
+        n_tail = int(len(r) * tail_weight)
         idx = rng.choice(len(r), size=n_tail, replace=False)
         sigma = r.std()
         r[idx] = r.mean() - rng.uniform(3.0, 6.0, size=n_tail) * sigma
 
     # 4) bimodal: split mass into a "settles" mode and a "gaps lower" mode
-    if sc["distribution_type"] == "bimodal":
+    if distribution_type == "bimodal":
         n_gap = int(len(r) * 0.25)
         idx = rng.choice(len(r), size=n_gap, replace=False)
         sigma = r.std()
         r[idx] = r[idx] - 2.5 * sigma  # second mode: unwind-at-a-loss regime
 
     return r
+
+
+def apply_scenario(base_returns: np.ndarray, scenario_key: str, seed: int = 0) -> np.ndarray:
+    """Legacy 10-scenario entry point — thin wrapper over apply_stress()."""
+    sc = SCENARIOS[scenario_key]
+    return apply_stress(
+        base_returns,
+        vol_multiplier=sc["vol_multiplier"],
+        mean_shift=sc["mean_shift"],
+        distribution_type=sc["distribution_type"],
+        skew_adjustment=sc["skew_adjustment"],
+        tail_weight=sc["tail_weight"],
+        seed=seed,
+    )
