@@ -83,6 +83,35 @@ data (synthetic FX returns + Faker metadata, S3 w/ local fallback)
 Both estimators target the *same* quantity — P(loss > threshold) on the same
 stressed distribution — so their resource counts are directly comparable.
 
+## FCNR(B) funding book — real regulatory backdrop
+
+On 8 June 2026, RBI circular RBI/2026-27/99 opened a USD-INR forex swap
+facility for fresh FCNR(B) deposits (3-5yr tenor), absorbing banks'
+currency-hedging cost so they could offer NRIs sharply higher rates without
+extra cost to the bank. Inflows (~$52.3bn FCNR-specific, ~$56bn+ across all
+three swap windows as of mid-August) far exceeded the comparable 2013
+scheme, prompting RBI to move the mobilisation deadline forward to 31 August
+2026 (from 30 September) and the swap-settlement deadline to 11 September
+2026. After that, banks bear the full hedging cost themselves on any fresh
+or rolled-over FCNR(B) funding. A meaningful share of inflows came through
+leveraged structures yielding depositors ~14-15% effective returns after
+borrowing costs — flagged as a real rollover-risk concern, since that
+premium may not survive once the subsidy ends. These facts were verified
+via web search before being cited here, not assumed:
+
+- [Business Standard — FCNR(B) swap window explained: why RBI opened it, then advanced the deadline](https://www.business-standard.com/finance/news/rbi-fcnr-b-window-nri-dollar-swap-deposit-scheme-deadline-forex-126081700609_1.html)
+- [Business Today — RBI limits FCNR(B) forex swap facility after $52.3bn inflows](https://www.businesstoday.in/amp/latest/economy/story/rbi-limits-fcnrb-forex-swap-facility-after-52-3-bn-inflows-ecb-ofcb-window-stays-open-549331-2026-08-14)
+- [RBI/2026-27/99 circular text, 8 June 2026](https://caalley.com/rbi26/99NT1723C9DF80134A538854DA7B2DA84F37.pdf)
+- [Vinod Kothari Consultants — leveraged FCNR deposits, effective yields and costs](https://vinodkothari.com/2026/07/leveraged-fcnr-deposits-higher-returns-for-nris-at-whose-cost/)
+
+Everything built ON TOP of that backdrop — the specific $300M book, its rate
+and tenor, the retention-multiplier values by scenario, and the funding-gap
+formula — is a synthetic illustration (`src/fcnr.py`), not real GIFT City
+IBU data. Retention risk is modeled on only 2 of the 9 shock themes (Fed
+Rate Move, India Sovereign Spread) — the two macro drivers that plausibly
+move NRI deposit retention; the other 7 carry a retention multiplier of 1.0
+(no modeled effect), stated openly in the dashboard's methodology section.
+
 ## Progressive shock ladder & hedge engine
 
 Running IQAE on every one of the 43 severity variants × 3 pairs (129
@@ -128,6 +157,10 @@ from the single-position Hedge Ratio calculator in the previous build.
 - The required-hedge-ratio formula (linear in `vol_multiplier` toward the
   ladder's most extreme severity) is a modeling choice we designed to make
   mild-vs-severe shocks discriminate cleanly, not an industry-standard model.
+- The FCNR(B) book ($300M, 3yr, 6.5%), its retention-multiplier values, and
+  the funding-gap/post-window-hedging-cost formulas are synthetic —
+  illustrative math on top of the real RBI swap-window backdrop (dates,
+  circular reference, and inflow figures are real and cited above).
 
 **Real (actually measured / actually running):**
 - The IQAE algorithm itself — genuine qiskit-algorithms implementation, real

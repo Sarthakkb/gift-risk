@@ -29,6 +29,7 @@ from src.aws_services import (
     load_metadata,
 )
 from src.benchmark import plot_benchmark
+import src.fcnr as fcnr
 from src.portfolio import PORTFOLIO_DEFAULTS, DEFAULT_DRIFT_THRESHOLD, shock_impact
 from src.shocks import THEMES
 
@@ -89,6 +90,57 @@ if "portfolio" not in st.session_state:
     st.session_state.portfolio = {
         pair: dict(cfg) for pair, cfg in PORTFOLIO_DEFAULTS.items()
     }
+if "fcnr" not in st.session_state:
+    st.session_state.fcnr = dict(fcnr.FCNR_DEFAULTS)
+
+# ============================================================ SECTION 0
+st.subheader("FCNR(B) Funding Base")
+st.caption(
+    f"Real regulatory context: {fcnr.CIRCULAR_REF} opened a USD-INR forex "
+    "swap facility for fresh FCNR(B) deposits, absorbing banks' hedging "
+    "cost. Inflows far exceeded expectations, so RBI moved the mobilisation "
+    "deadline forward to 31 Aug 2026 (from 30 Sep) and the swap-settlement "
+    "deadline to 11 Sep 2026. This book and its numbers below are a "
+    "synthetic illustration on top of that real backdrop."
+)
+fc1, fc2, fc3 = st.columns([1.4, 1, 1])
+with fc1:
+    fcnr_notional = st.number_input(
+        "FCNR(B) notional raised (USD)", min_value=1_000_000,
+        value=int(st.session_state.fcnr["notional"]), step=10_000_000,
+        format="%d", key="fcnr_notional",
+    )
+    st.caption(
+        f"Tenor {st.session_state.fcnr['tenor_years']} years · "
+        f"rate paid to depositors {st.session_state.fcnr['rate_paid']:.1%} · "
+        f"swap booked {st.session_state.fcnr['swap_booked_date']:%d %b %Y}"
+    )
+    st.session_state.fcnr["notional"] = fcnr_notional
+
+status = fcnr.fcnr_status()
+with fc2:
+    if status.days_to_mobilisation >= 0:
+        st.metric("Days to mobilisation deadline", status.days_to_mobilisation,
+                   help="RBI swap window mobilisation deadline: 31 Aug 2026")
+    else:
+        st.metric("Mobilisation window", "CLOSED", f"{-status.days_to_mobilisation}d ago")
+    st.caption(f"Swap settlement deadline: 11 Sep 2026 ({status.days_to_swap_unwind}d)")
+with fc3:
+    # baseline retention status (theme=fed_rate, "baseline" isn't in the
+    # ladder itself — use the mildest Fed variant as the closest proxy to
+    # "ordinary conditions" for a quick-glance status)
+    mild_gap = fcnr.funding_gap(fcnr_notional, fcnr.retention_multiplier("fed_rate", "Fed +25bps"))
+    mild_gap_pct = mild_gap / fcnr_notional
+    if mild_gap_pct < 0.03:
+        st.success(f"Retention risk: on track (~${mild_gap/1e6:.0f}M at mild stress)")
+    elif mild_gap_pct < 0.08:
+        st.warning(f"Retention risk: watch (~${mild_gap/1e6:.0f}M at mild stress)")
+    else:
+        st.error(f"Retention risk: elevated (~${mild_gap/1e6:.0f}M at mild stress)")
+    post_cost = fcnr.post_window_hedging_cost_bps(0)
+    st.caption(f"Post-window self-funded hedging cost (illustrative, no shock): ~{post_cost:.0f}bps")
+
+st.divider()
 
 # ============================================================ SECTION 1
 st.subheader("Portfolio Positions")
@@ -128,7 +180,7 @@ for col, pair in zip(cols, PAIRS):
 st.divider()
 
 # ---------------------------------------------------- recompute all impacts
-def compute_impacts(portfolio: dict) -> pd.DataFrame:
+def compute_impacts(portfolio: dict, fcnr_notional: float) -> pd.DataFrame:
     """Pure arithmetic over the precomputed VaR table — recomputed live on
     every rerun (fast: 129 rows) so notional/target edits reflect instantly
     without touching the quantum-computed cache."""
@@ -141,6 +193,14 @@ def compute_impacts(portfolio: dict) -> pd.DataFrame:
             row["quantum_var_pct"], row["vol_multiplier"], cfg["target_hedge_ratio"],
             cfg["notional"], meta["exposure_type"], pair,
         )
+        theme_key = row["theme_key"]
+        ret_mult = fcnr.retention_multiplier(theme_key, row["severity_label"])
+        in_scope = theme_key in fcnr.RETENTION_SCOPE_THEMES
+        gap = fcnr.funding_gap(fcnr_notional, ret_mult) if in_scope else None
+        hedge_cost = (
+            fcnr.post_window_hedging_cost_bps(row["severity_value"])
+            if theme_key == "fed_rate" else None
+        )
         records.append({
             **row.to_dict(),
             "notional": cfg["notional"],
@@ -151,18 +211,24 @@ def compute_impacts(portfolio: dict) -> pd.DataFrame:
             "drift": imp.drift,
             "action_required": imp.action_required,
             "trade_text": imp.trade_text,
+            "fcnr_in_scope": in_scope,
+            "fcnr_retention": ret_mult if in_scope else None,
+            "fcnr_gap": gap,
+            "fcnr_hedge_cost_bps": hedge_cost,
         })
     return pd.DataFrame(records)
 
 
-impacts = compute_impacts(st.session_state.portfolio)
+impacts = compute_impacts(st.session_state.portfolio, st.session_state.fcnr["notional"])
 
 # ============================================================ SECTION 2
 st.subheader("Progressive Shock Heatmap")
 st.caption(
     "Rows: macro themes, mild → extreme. Columns: currency pair. "
     "Cell: P&L impact ($K / % of notional / hedge-ratio drift Δ). "
-    "Click a cell for full detail."
+    "Click a cell for full detail. The FCNR columns only populate for Fed "
+    "Rate Move and India Sovereign Spread — the two themes retention risk "
+    "is modeled on (see FCNR(B) Funding Base above); other themes show —."
 )
 
 flat_rows = []
@@ -174,18 +240,18 @@ for theme_key, theme in THEMES.items():
 row_labels = [f"{name} · {sev}" for _, name, sev, _ in flat_rows]
 severity_dots_col = [dot for *_, dot in flat_rows]
 
+EXTRA_COLS = ["FCNR Retention", "Funding Gap ($)"]
+all_cols = ["⚑"] + PAIRS + EXTRA_COLS
 display = pd.DataFrame(index=row_labels)
 display.insert(0, "⚑", severity_dots_col)
-colors = pd.DataFrame("", index=row_labels, columns=["⚑"] + PAIRS)
+for c in PAIRS + EXTRA_COLS:
+    display[c] = ""
+colors = pd.DataFrame("", index=row_labels, columns=all_cols)
 
 for i, (theme_key, theme_name, sev, dot) in enumerate(flat_rows):
+    row_sub = impacts[(impacts["theme_key"] == theme_key) & (impacts["severity_label"] == sev)]
     for pair in PAIRS:
-        sub = impacts[
-            (impacts["theme_key"] == theme_key)
-            & (impacts["severity_label"] == sev)
-            & (impacts["pair"] == pair)
-        ]
-        r = sub.iloc[0]
+        r = row_sub[row_sub["pair"] == pair].iloc[0]
         marker = "▸ " if r["action_required"] else ""
         display.loc[row_labels[i], pair] = (
             f"{marker}{r['pnl_usd']/1000:+.0f}K "
@@ -200,6 +266,20 @@ for i, (theme_key, theme_name, sev, dot) in enumerate(flat_rows):
         bg = f"rgb({red},{green},{blue})"
         border = "2px solid #a23b2c" if r["action_required"] else "1px solid #ddd"
         colors.loc[row_labels[i], pair] = f"background-color:{bg}; border:{border};"
+
+    # FCNR columns — only meaningful for fed_rate / sovereign_spread themes
+    r0 = row_sub.iloc[0]
+    if r0["fcnr_in_scope"]:
+        display.loc[row_labels[i], "FCNR Retention"] = f"{r0['fcnr_retention']:.0%}"
+        display.loc[row_labels[i], "Funding Gap ($)"] = f"${r0['fcnr_gap']/1e6:+.0f}M"
+        gap_bg = "background-color:#F4E1DA;" if r0["fcnr_gap"] > 0 else "background-color:#E1E9DB;"
+        colors.loc[row_labels[i], "FCNR Retention"] = gap_bg
+        colors.loc[row_labels[i], "Funding Gap ($)"] = gap_bg
+    else:
+        display.loc[row_labels[i], "FCNR Retention"] = "—"
+        display.loc[row_labels[i], "Funding Gap ($)"] = "—"
+        colors.loc[row_labels[i], "FCNR Retention"] = "background-color:#EEEEEE; color:#999;"
+        colors.loc[row_labels[i], "Funding Gap ($)"] = "background-color:#EEEEEE; color:#999;"
 
 styled = display.style.apply(lambda _: colors, axis=None)
 event = st.dataframe(
@@ -284,8 +364,18 @@ with col_blotter:
     blotter = impacts[impacts["action_required"]].copy()
     blotter["abs_drift"] = blotter["drift"].abs()
     blotter = blotter.sort_values("abs_drift", ascending=False)
-    if blotter.empty:
-        st.success("No trades required across the current shock ladder.")
+
+    # funding-gap warnings, one per (fed_rate/sovereign_spread) variant with
+    # a positive gap — deduped across the 3 pairs since the gap is
+    # portfolio-wide, not per-pair
+    gap_rows = (
+        impacts[(impacts["fcnr_in_scope"]) & (impacts["fcnr_gap"] > 0)]
+        .drop_duplicates(subset=["theme_key", "severity_label"])
+        .sort_values("fcnr_gap", ascending=False)
+    )
+
+    if blotter.empty and gap_rows.empty:
+        st.success("No trades or funding gaps flagged across the current shock ladder.")
     else:
         for _, r in blotter.head(15).iterrows():
             action = r["trade_text"].split()[0]
@@ -298,6 +388,17 @@ with col_blotter:
             )
         if len(blotter) > 15:
             st.caption(f"...and {len(blotter) - 15} more action-required trades.")
+
+        if not gap_rows.empty:
+            st.markdown("**FCNR(B) funding gap warnings**")
+            for _, r in gap_rows.head(6).iterrows():
+                st.markdown(
+                    f"🟠 **Funding Gap: ${r['fcnr_gap']/1e6:.0f}M at risk under "
+                    f"{r['severity_label']}** ({r['theme_name']})  \n"
+                    f"Replace via fresh FCNR at higher self-funded hedge cost"
+                    + (f" (~{r['fcnr_hedge_cost_bps']:.0f}bps)" if pd.notna(r['fcnr_hedge_cost_bps']) else "")
+                    + ", or alternative wholesale funding."
+                )
 
 st.divider()
 
@@ -325,12 +426,27 @@ if "morning_briefing" not in st.session_state:
         else "No trades required today."
     )
     exposed_pair = exposure_by_pair.index[0]
+    if not gap_rows.empty:
+        top_gap = gap_rows.iloc[0]
+        funding_note = (
+            f"RBI's FCNR(B) swap window closes for fresh mobilisation in "
+            f"{status.days_to_mobilisation} days (31 Aug 2026); under "
+            f"{top_gap['severity_label']} ({top_gap['theme_name']}), an "
+            f"estimated ${top_gap['fcnr_gap']/1e6:.0f}M of FCNR(B) funding "
+            f"is at retention risk."
+        )
+    else:
+        funding_note = (
+            f"FCNR(B) funding base stable across the ladder; RBI's swap "
+            f"window closes for fresh mobilisation in {status.days_to_mobilisation} days."
+        )
     with st.spinner("Drafting morning briefing…"):
         text, source = generate_portfolio_briefing(
             f"{worst['theme_name']} — {worst['severity_label']}",
             f"${worst['total_pnl']:,.0f}",
             exposed_pair,
             top_trade_text,
+            funding_note,
         )
     st.session_state.morning_briefing = (text, source)
 
@@ -367,6 +483,15 @@ with st.expander("Quantum Methodology", expanded=False):
         "hardware ran anything faster in real time."
     )
     st.markdown("**Backend:** Qiskit Aer (IQAE) for all 27 representative runs.")
+    st.markdown(
+        "**FCNR(B) retention scoping.** Retention risk (funding gap) is "
+        "modeled on exactly 2 of the 9 shock themes — **Fed Rate Move** and "
+        "**India Sovereign Spread** — the two macro drivers that plausibly "
+        "move NRI deposit retention. All other 7 themes carry a retention "
+        "multiplier of 1.0 (no modeled effect), by design, stated here "
+        "openly rather than applying an ungrounded effect everywhere. "
+        f"Real regulatory backdrop: {fcnr.CIRCULAR_REF}."
+    )
     st.caption(
         "Baseline (unstressed) classical VaR, for reference: "
         + " · ".join(f"{p}: {v:.3%}" for p, v in baseline_var.items())

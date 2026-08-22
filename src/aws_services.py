@@ -143,11 +143,13 @@ def generate_portfolio_briefing(
     worst_pnl: str,
     most_exposed_pair: str,
     top_trade: str,
+    funding_note: str | None = None,
 ) -> tuple[str, str]:
     """Morning portfolio-level briefing (one call per session, not per cell).
 
     Returns (text, source) where source is 'bedrock' or 'offline'.
     """
+    funding_block = f"\nFCNR(B) funding-side context: {funding_note}\n" if funding_note else ""
     prompt = (
         "You are a treasury risk analyst at a GIFT IFSC (GIFT City, India) "
         "banking unit, writing the opening paragraph of the morning risk "
@@ -157,20 +159,23 @@ def generate_portfolio_briefing(
         f"Most stressed scenario today: {worst_scenario}\n"
         f"Aggregate portfolio P&L impact of that scenario: {worst_pnl}\n"
         f"Most exposed currency pair: {most_exposed_pair}\n"
-        f"Highest-priority trade recommendation: {top_trade}\n\n"
+        f"Highest-priority trade recommendation: {top_trade}\n"
+        f"{funding_block}\n"
         "Write 3-4 sentences covering: the largest portfolio risk, the most "
         "exposed pair, the highest-priority trade, and one sentence on why "
-        "this matters now. Plain English for a desk head skimming before "
+        "this matters now"
+        + (" — including the FCNR(B) funding-side note if it's material" if funding_note else "")
+        + ". Plain English for a desk head skimming before "
         "the trading day starts. All data is synthetic; do not add "
         "disclaimers, headers, or bullet points."
     )
     try:
         return _invoke_bedrock(prompt), "bedrock"
     except Exception:
-        return (
-            _PORTFOLIO_OFFLINE_TEMPLATE.format(
-                worst_scenario=worst_scenario, worst_pnl=worst_pnl,
-                most_exposed_pair=most_exposed_pair, top_trade=top_trade,
-            ),
-            "offline",
+        text = _PORTFOLIO_OFFLINE_TEMPLATE.format(
+            worst_scenario=worst_scenario, worst_pnl=worst_pnl,
+            most_exposed_pair=most_exposed_pair, top_trade=top_trade,
         )
+        if funding_note:
+            text += f" {funding_note}"
+        return text, "offline"
