@@ -130,6 +130,28 @@ Rate Move, India Sovereign Spread) — the two macro drivers that plausibly
 move NRI deposit retention; the other 7 carry a retention multiplier of 1.0
 (no modeled effect), stated openly in the dashboard's methodology section.
 
+## HDFC Case Study tab — a live worked example
+
+A second dashboard tab runs a real, current GIFT City transaction through the
+exact same engine as the portfolio dashboard: on 21 Aug 2026, HDFC Bank's
+GIFT City IBU priced **US$1.75bn in senior unsecured bonds** — $500M at
+5.159% (3yr) and $1.25B at 5.4% (5yr), settling 26 Aug 2026, rated Baa3
+(Moody's) / BBB (S&P), proceeds for overseas lending. These facts were
+verified via web search before being cited, not assumed:
+
+- [Business Standard — HDFC Bank raises $1.75bn through overseas bond issue](https://www.business-standard.com/finance/news/hdfc-bank-raises-1-75-bn-through-overseas-bond-issue-to-fund-business-126082100360_1.html)
+- [TipRanks — HDFC Bank raises US$1.75 billion via GIFT City bond issuance](https://www.tipranks.com/news/company-announcements/hdfc-bank-raises-us1-75-billion-via-gift-city-bond-issuance)
+
+The bond itself is modeled as a new USD/INR "payable" position, reusing the
+same 43-variant shock ladder, the same quantum-verified VaR (Qiskit Aer
+IQAE), and the same hedge-drift/trade-recommendation engine as the main
+portfolio — no new computation, no new methodology to trust. The tab is
+explicit about what's real and what's illustrative: the transaction facts
+(amounts, coupons, dates, ratings) are real and cited; the target hedge
+ratio (85%, reflecting a natural offset from USD-denominated overseas
+lending) is an illustrative assumption, since HDFC's actual internal hedging
+policy is not public information.
+
 ## Progressive shock ladder & hedge engine
 
 Running IQAE on every one of the 43 severity variants × 3 pairs (129
