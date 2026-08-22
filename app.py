@@ -20,6 +20,7 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 import streamlit as st
 
@@ -31,6 +32,7 @@ from src.aws_services import (
 )
 from src.benchmark import plot_benchmark
 import src.fcnr as fcnr
+from src.market_data import PAIR_PARAMS
 from src.portfolio import PORTFOLIO_DEFAULTS, DEFAULT_DRIFT_THRESHOLD, shock_impact
 from src.shocks import THEMES
 
@@ -93,6 +95,42 @@ if "portfolio" not in st.session_state:
     }
 if "fcnr" not in st.session_state:
     st.session_state.fcnr = dict(fcnr.FCNR_DEFAULTS)
+
+
+@st.cache_data(show_spinner=False)
+def _rate_ticker() -> pd.DataFrame:
+    """FX spot & forward rates — realistic mock values, generated once.
+    Forward points reflect a plausible rate differential (INR carries a
+    higher rate than USD/SGD/AED, so INR forwards trade at a premium),
+    reusing the pipeline's own synthetic spot levels (src/market_data.py)
+    rather than inventing a separate set of numbers."""
+    diffs = {"USD/INR": 0.020, "SGD/INR": 0.032, "AED/INR": 0.020}
+    daily_change = {"USD/INR": 0.0007, "SGD/INR": -0.0004, "AED/INR": 0.0005}
+    rows = []
+    for pair in PAIRS:
+        spot = PAIR_PARAMS[pair]["spot"]
+        d = diffs[pair]
+        rows.append({
+            "Pair": pair,
+            "Spot": spot,
+            "1M Forward": spot * (1 + d / 12),
+            "3M Forward": spot * (1 + d / 4),
+            "Daily Change": daily_change[pair],
+        })
+    return pd.DataFrame(rows)
+
+
+st.subheader("FX Spot & Forward Rates")
+ticker_df = _rate_ticker()
+st.dataframe(
+    ticker_df.style.format({
+        "Spot": "{:.4f}", "1M Forward": "{:.4f}", "3M Forward": "{:.4f}",
+        "Daily Change": "{:+.2%}",
+    }),
+    hide_index=True, width=560,
+)
+st.caption("Illustrative rates — generated once per session, not a live feed.")
+st.divider()
 
 # ============================================================ SECTION 0
 st.subheader("FCNR(B) Funding Base")
@@ -567,6 +605,61 @@ ax.set_xlabel("Total portfolio P&L impact (USD)")
 ax.set_title("All 43 scenario variants, aggregated across the 3-pair portfolio")
 fig.tight_layout()
 st.pyplot(fig)
+
+st.divider()
+
+# ============================================================ SECTION 4.5
+wc1, wc2 = st.columns(2)
+
+with wc1:
+    st.subheader("P&L Attribution — Most Stressed Scenario")
+    st.caption(f"{worst['theme_name']} — {worst['severity_label']}, broken down by currency pair contribution.")
+    worst_by_pair = impacts[
+        (impacts["theme_key"] == worst["theme_key"])
+        & (impacts["severity_label"] == worst["severity_label"])
+    ].set_index("pair")["pnl_usd"]
+
+    steps = ["Start"] + PAIRS + ["Total"]
+    values = [0.0] + [worst_by_pair[p] for p in PAIRS] + [worst_by_pair.sum()]
+    cum = [0.0]
+    for v in values[1:-1]:
+        cum.append(cum[-1] + v)
+    bottoms = [0.0] + cum[:-1] + [0.0]
+    heights = [0.0] + values[1:-1] + [values[-1]]
+    bar_colors = ["#999"] + ["#A23B2C" if v < 0 else "#45633A" for v in values[1:-1]] + ["#2A4494"]
+
+    fig2, ax2 = plt.subplots(figsize=(6, 4))
+    ax2.bar(steps, heights, bottom=bottoms, color=bar_colors)
+    ax2.axhline(0, color="black", linewidth=0.6)
+    ax2.set_ylabel("P&L impact (USD)")
+    for i, (s, h, b) in enumerate(zip(steps, heights, bottoms)):
+        if s not in ("Start",):
+            label_y = b + h if s != "Total" else h
+            ax2.annotate(f"${h:,.0f}" if s == "Total" else f"${h:+,.0f}", (i, label_y),
+                         ha="center", va="bottom" if h >= 0 else "top", fontsize=8)
+    fig2.tight_layout()
+    st.pyplot(fig2)
+
+with wc2:
+    st.subheader("30-Day VaR Trend")
+    st.caption("Illustrative historical trend — synthetic data, not live.")
+
+    @st.cache_data(show_spinner=False)
+    def _var_trend(center_usd: float) -> pd.DataFrame:
+        noise = np.random.default_rng(42).normal(0, center_usd * 0.06, size=30)
+        walk = np.cumsum(np.random.default_rng(7).normal(0, center_usd * 0.015, size=30))
+        series = center_usd + walk - walk.mean() + noise * 0.3
+        return pd.DataFrame({"Day": range(-29, 1), "Portfolio VaR (USD)": series})
+
+    trend_df = _var_trend(base_total)
+    fig3, ax3 = plt.subplots(figsize=(6, 4))
+    ax3.plot(trend_df["Day"], trend_df["Portfolio VaR (USD)"], color="#2A4494", linewidth=1.6)
+    ax3.axhline(base_total, color="#999", linestyle="--", linewidth=1, label="Today's baseline VaR")
+    ax3.set_xlabel("Days ago")
+    ax3.set_ylabel("Portfolio VaR (USD)")
+    ax3.legend(fontsize=8)
+    fig3.tight_layout()
+    st.pyplot(fig3)
 
 st.divider()
 
