@@ -1,0 +1,388 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: 'Manrope', system-ui, sans-serif;
+      background: #0F2B2E;
+      color: #EAF3F1;
+      font-size: 13.5px;
+      line-height: 1.5;
+    }
+    a { color: #4EA8DE; } a:hover { color: #7CC3EA; }
+    .mono { font-family: 'Space Mono', monospace; font-variant-numeric: tabular-nums; }
+    .display { font-family: 'Sora', sans-serif; }
+    ::-webkit-scrollbar { width: 9px; height: 9px; }
+    ::-webkit-scrollbar-track { background: #0F2B2E; }
+    ::-webkit-scrollbar-thumb { background: #2A5257; border-radius: 5px; }
+    details > summary { cursor: pointer; list-style: none; }
+    details > summary::-webkit-details-marker { display: none; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+    @keyframes riseIn { from{opacity:0; transform:translateY(6px)} to{opacity:1; transform:translateY(0)} }
+  </style>
+</helmet>
+
+<div style="width:1440px; padding-bottom:60px; background:#0F2B2E;">
+
+  <!-- ============ MASTHEAD ============ -->
+  <div style="display:flex; align-items:center; justify-content:space-between; padding:22px 30px 16px 30px; border-bottom:1px solid #1D474A;">
+    <div style="display:flex; align-items:center; gap:13px;">
+      <div style="width:38px; height:38px; border-radius:9px; background:#163A3D; border:1px solid #2A5257; display:flex; align-items:center; justify-content:center;">
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="{{accent}}" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 19V9l8-5 8 5v10"/><path d="M9 19v-6h6v6"/><path d="M4 12l8-5 8 5"/>
+        </svg>
+      </div>
+      <div>
+        <div class="display" style="font-size:19px; font-weight:700; letter-spacing:-0.01em;">GIFT Risk</div>
+        <div style="font-size:11px; color:#8FA8A8; margin-top:1px;">Treasury Risk Cockpit &middot; GIFT IFSC</div>
+      </div>
+    </div>
+    <div style="display:flex; align-items:center; gap:16px;">
+      <div style="display:flex; align-items:center; gap:6px; font-size:11px; color:#8FA8A8;">
+        <span style="width:6px; height:6px; border-radius:50%; background:#4CAF7D; animation:pulse 2.2s ease-in-out infinite; display:inline-block;"></span>
+        Simulator session &middot; synthetic data
+      </div>
+      <div class="mono" style="font-size:11.5px; color:#8FA8A8;">Sat &middot; 22 Aug 2026</div>
+    </div>
+  </div>
+  <div style="padding:9px 30px; background:#1D2E1A; border-bottom:1px solid #2E4A2A; font-size:11px; color:#B7C9A8;">
+    Positions and market data are synthetic. The quantum step runs on a classical simulator. This is a hackathon prototype — not financial advice, not a production risk system.
+  </div>
+
+  <!-- ============ RATE TICKER ============ -->
+  <div style="display:flex; gap:0; padding:11px 30px; background:#123134; border-bottom:1px solid #1D474A; overflow-x:auto;">
+    <div style="display:flex; gap:34px;">
+      <div style="display:flex; align-items:center; gap:9px;"><span class="mono" style="font-weight:700; color:{{accent}};">USD/INR</span><span class="mono">88.2000</span><span style="font-size:10.5px; color:#8FA8A8;">1M 88.3467 &middot; 3M 88.6410</span><span class="mono" style="color:#4CAF7D; font-size:11.5px;">+0.07%</span></div>
+      <div style="display:flex; align-items:center; gap:9px;"><span class="mono" style="font-weight:700; color:{{accent}};">SGD/INR</span><span class="mono">65.1000</span><span style="font-size:10.5px; color:#8FA8A8;">1M 65.2736 &middot; 3M 65.6208</span><span class="mono" style="color:#E4574C; font-size:11.5px;">−0.04%</span></div>
+      <div style="display:flex; align-items:center; gap:9px;"><span class="mono" style="font-weight:700; color:{{accent}};">AED/INR</span><span class="mono">24.0200</span><span style="font-size:10.5px; color:#8FA8A8;">1M 24.0600 &middot; 3M 24.1401</span><span class="mono" style="color:#4CAF7D; font-size:11.5px;">+0.05%</span></div>
+      <div style="color:#5A7576; font-size:10.5px; align-self:center;">Illustrative rates &middot; generated once, not live</div>
+    </div>
+  </div>
+
+  <div style="padding:24px 30px 0 30px;">
+
+    <!-- ============ COMMAND ROW ============ -->
+    <div style="display:grid; grid-template-columns: 280px 1fr 300px; gap:16px;">
+
+      <!-- FCNR RADIAL DIAL -->
+      <div style="background:#163A3D; border:1px solid #2A5257; border-radius:10px; padding:18px; display:flex; flex-direction:column; align-items:center;">
+        <div style="font-size:11px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:#8FA8A8; align-self:flex-start; margin-bottom:10px;">FCNR(B) Funding Base</div>
+        <svg width="140" height="140" viewBox="0 0 140 140">
+          <circle cx="70" cy="70" r="58" fill="none" stroke="#1D474A" stroke-width="12"/>
+          <circle cx="70" cy="70" r="58" fill="none" stroke="#E0A947" stroke-width="12" stroke-linecap="round"
+                  stroke-dasharray="364.4" stroke-dashoffset="324.7" transform="rotate(-90 70 70)"/>
+          <text x="70" y="64" text-anchor="middle" font-family="Sora" font-size="30" font-weight="700" fill="#EAF3F1">9</text>
+          <text x="70" y="84" text-anchor="middle" font-family="Manrope" font-size="10" fill="#8FA8A8">days left</text>
+        </svg>
+        <div style="font-size:11px; color:#8FA8A8; text-align:center; margin-top:2px;">to mobilisation deadline<br><span class="mono" style="color:#EAF3F1;">31 Aug 2026</span></div>
+        <div style="width:100%; margin-top:12px; padding-top:12px; border-top:1px dashed #2A5257; font-size:11px; color:#8FA8A8;">
+          <div>$300M raised &middot; 6.5% paid &middot; 3yr</div>
+          <div style="margin-top:4px;">Swap unwind deadline: <span class="mono" style="color:#EAF3F1;">11 Sep</span> (20d)</div>
+          <div style="margin-top:4px;">Post-window hedge cost (illustrative): <span class="mono" style="color:#E0A947;">~350bps</span></div>
+        </div>
+      </div>
+
+      <!-- ALERTS FEED -->
+      <div style="background:#163A3D; border:1px solid #2A5257; border-radius:10px; padding:18px;">
+        <div style="font-size:11px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:#8FA8A8; margin-bottom:10px;">Unified Risk Alerts</div>
+        <div style="display:flex; flex-direction:column; gap:0; max-height:190px; overflow-y:auto;">
+          <div style="display:flex; gap:8px; padding:6px 0; border-bottom:1px solid #1D474A;"><span style="color:#E4574C;">●</span><span class="mono" style="color:#5A7576; font-size:10.5px;">06:15</span><span style="font-size:11.5px;"><strong style="color:#E4574C;">CRITICAL</strong> — SGD/INR VaR limit at 128% under GIFT City Liquidity, Extreme</span></div>
+          <div style="display:flex; gap:8px; padding:6px 0; border-bottom:1px solid #1D474A;"><span style="color:#E4574C;">●</span><span class="mono" style="color:#5A7576; font-size:10.5px;">06:15</span><span style="font-size:11.5px;"><strong style="color:#E4574C;">CRITICAL</strong> — USD/INR VaR limit at 111% under GIFT City Liquidity, Extreme</span></div>
+          <div style="display:flex; gap:8px; padding:6px 0; border-bottom:1px solid #1D474A;"><span style="color:#E4574C;">●</span><span class="mono" style="color:#5A7576; font-size:10.5px;">06:20</span><span style="font-size:11.5px;"><strong style="color:#E4574C;">CRITICAL</strong> — Hedge drift +30% on AED/INR under GIFT City Liquidity, Extreme</span></div>
+          <div style="display:flex; gap:8px; padding:6px 0; border-bottom:1px solid #1D474A;"><span style="color:#E4574C;">●</span><span class="mono" style="color:#5A7576; font-size:10.5px;">05:49</span><span style="font-size:11.5px;"><strong style="color:#E4574C;">CRITICAL</strong> — FCNR funding gap of $105M under Spread +200bps</span></div>
+          <div style="display:flex; gap:8px; padding:6px 0; border-bottom:1px solid #1D474A;"><span style="color:#E0A947;">●</span><span class="mono" style="color:#5A7576; font-size:10.5px;">06:11</span><span style="font-size:11.5px;"><strong style="color:#E0A947;">WARNING</strong> — Hedge drift +27% on AED/INR under Global Equity, SPY −30%</span></div>
+          <div style="display:flex; gap:8px; padding:6px 0; border-bottom:1px solid #1D474A;"><span style="color:#E0A947;">●</span><span class="mono" style="color:#5A7576; font-size:10.5px;">05:52</span><span style="font-size:11.5px;"><strong style="color:#E0A947;">WARNING</strong> — FCNR funding gap of $90M under Fed +100bps</span></div>
+          <div style="display:flex; gap:8px; padding:6px 0; border-bottom:1px solid #1D474A;"><span style="color:#E0A947;">●</span><span class="mono" style="color:#5A7576; font-size:10.5px;">05:24</span><span style="font-size:11.5px;"><strong style="color:#E0A947;">WARNING</strong> — Hedge drift +15% on USD/INR under Sovereign Spread +200bps</span></div>
+          <div style="display:flex; gap:8px; padding:6px 0;"><span style="color:#E0A947;">●</span><span class="mono" style="color:#5A7576; font-size:10.5px;">05:15</span><span style="font-size:11.5px;"><strong style="color:#E0A947;">WARNING</strong> — Hedge drift +18% on AED/INR under Brent Crude, −30%</span></div>
+        </div>
+      </div>
+
+      <!-- VAR LIMIT GAUGES -->
+      <div style="background:#163A3D; border:1px solid #2A5257; border-radius:10px; padding:18px;">
+        <div style="font-size:11px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:#8FA8A8; margin-bottom:10px;">VaR Limit Utilization (worst-case)</div>
+        <div style="display:flex; flex-direction:column; gap:10px;">
+          <div>
+            <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:3px;"><span>USD/INR</span><span class="mono" style="color:#E4574C;">111%</span></div>
+            <div style="height:6px; background:#1D474A; border-radius:3px;"><div style="width:100%; height:100%; background:#E4574C; border-radius:3px;"></div></div>
+          </div>
+          <div>
+            <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:3px;"><span>SGD/INR</span><span class="mono" style="color:#E4574C;">128%</span></div>
+            <div style="height:6px; background:#1D474A; border-radius:3px;"><div style="width:100%; height:100%; background:#E4574C; border-radius:3px;"></div></div>
+          </div>
+          <div>
+            <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:3px;"><span>AED/INR</span><span class="mono" style="color:#E0A947;">91%</span></div>
+            <div style="height:6px; background:#1D474A; border-radius:3px;"><div style="width:91%; height:100%; background:#E0A947; border-radius:3px;"></div></div>
+          </div>
+          <div style="padding-top:8px; border-top:1px dashed #2A5257;">
+            <div style="display:flex; justify-content:space-between; font-size:11.5px; font-weight:700; margin-bottom:3px;"><span>Portfolio total</span><span class="mono" style="color:#E4574C;">30%</span></div>
+            <div style="height:7px; background:#1D474A; border-radius:3px;"><div style="width:30%; height:100%; background:#4CAF7D; border-radius:3px;"></div></div>
+            <div style="font-size:10px; color:#5A7576; margin-top:3px;">$194,423 of $650,000 limit under most-stressed scenario</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ PORTFOLIO POSITIONS ============ -->
+    <div style="margin-top:20px; display:grid; grid-template-columns:repeat(3,1fr); gap:14px;">
+      <div style="background:#163A3D; border:1px solid #2A5257; border-radius:10px; padding:15px 17px;">
+        <div class="mono" style="font-size:14px; font-weight:700; color:{{accent}};">USD/INR</div>
+        <div style="font-size:11px; color:#8FA8A8; margin-top:2px;">Standard Chartered IBU &middot; Cross-Border Treasury Desk</div>
+        <div style="display:flex; gap:18px; margin-top:9px; font-size:11.5px;">
+          <div><span style="color:#8FA8A8;">Notional</span><br><span class="mono">$10.0M</span></div>
+          <div><span style="color:#8FA8A8;">Target hedge</span><br><span class="mono">80%</span></div>
+        </div>
+      </div>
+      <div style="background:#163A3D; border:1px solid #2A5257; border-radius:10px; padding:15px 17px;">
+        <div class="mono" style="font-size:14px; font-weight:700; color:{{accent}};">SGD/INR</div>
+        <div style="font-size:11px; color:#8FA8A8; margin-top:2px;">DBS Bank IFSC Unit &middot; Asia FX &amp; Remittances Desk</div>
+        <div style="display:flex; gap:18px; margin-top:9px; font-size:11.5px;">
+          <div><span style="color:#8FA8A8;">Notional</span><br><span class="mono">$5.0M</span></div>
+          <div><span style="color:#8FA8A8;">Target hedge</span><br><span class="mono">75%</span></div>
+        </div>
+      </div>
+      <div style="background:#163A3D; border:1px solid #2A5257; border-radius:10px; padding:15px 17px;">
+        <div class="mono" style="font-size:14px; font-weight:700; color:{{accent}};">AED/INR</div>
+        <div style="font-size:11px; color:#8FA8A8; margin-top:2px;">Axis Bank IFSC Branch &middot; Gulf Corridor Trade Finance Desk</div>
+        <div style="display:flex; gap:18px; margin-top:9px; font-size:11.5px;">
+          <div><span style="color:#8FA8A8;">Notional</span><br><span class="mono">$3.0M</span></div>
+          <div><span style="color:#8FA8A8;">Target hedge</span><br><span class="mono">70%</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ SHOCK HEATMAP ============ -->
+    <div style="margin-top:26px;">
+      <div style="display:flex; align-items:baseline; justify-content:space-between;">
+        <h2 class="display" style="font-size:19px; font-weight:700; margin:0;">Progressive Shock Heatmap</h2>
+        <div style="font-size:11px; color:#8FA8A8;">9 macro themes &middot; 43 severity variants &middot; click-through detail in the live app</div>
+      </div>
+      <div style="margin-top:12px; background:#163A3D; border:1px solid #2A5257; border-radius:10px; overflow:hidden;">
+        <div style="display:grid; grid-template-columns: 2fr .9fr .9fr .9fr .8fr .9fr; gap:0; padding:9px 16px; background:#1D474A; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:#8FA8A8;">
+          <div>Theme &middot; Severity</div><div style="text-align:right;">USD/INR</div><div style="text-align:right;">SGD/INR</div><div style="text-align:right;">AED/INR</div><div style="text-align:right;">FCNR Ret.</div><div style="text-align:right;">Funding Gap</div>
+        </div>
+        <div id="heatmapBody" style="max-height:620px; overflow-y:auto;"></div>
+      </div>
+      <div style="font-size:10.5px; color:#5A7576; margin-top:6px;">▸ marks a cell past the ±5-point hedge-drift action threshold. FCNR columns populate only for Fed Rate Move and India Sovereign Spread.</div>
+    </div>
+
+    <!-- ============ BLOTTER + MOST STRESSED ============ -->
+    <div style="margin-top:26px; display:grid; grid-template-columns:2fr 1fr; gap:16px;">
+      <div style="background:#163A3D; border:1px solid #2A5257; border-radius:10px; padding:18px;">
+        <h3 class="display" style="font-size:15px; font-weight:700; margin:0 0 12px 0;">Trade Blotter — Action Required</h3>
+        <div style="display:flex; flex-direction:column; gap:10px;">
+          <div style="border-left:3px solid #4EA8DE; padding-left:10px;"><span class="mono" style="font-weight:700; color:#4EA8DE;">BUY AED 0.90M vs INR</span><br><span style="font-size:11px; color:#8FA8A8;">Restores AED/INR hedge: 70% → 100% &middot; GIFT City Liquidity, Extreme &middot; drift +30%</span></div>
+          <div style="border-left:3px solid #4EA8DE; padding-left:10px;"><span class="mono" style="font-weight:700; color:#4EA8DE;">BUY AED 0.81M vs INR</span><br><span style="font-size:11px; color:#8FA8A8;">Restores AED/INR hedge: 70% → 97% &middot; Global Equity, SPY −30% &middot; drift +27%</span></div>
+          <div style="border-left:3px solid #E4574C; padding-left:10px;"><span class="mono" style="font-weight:700; color:#E4574C;">SELL SGD 1.25M vs INR</span><br><span style="font-size:11px; color:#8FA8A8;">Restores SGD/INR hedge: 75% → 100% &middot; GIFT City Liquidity, Extreme &middot; drift +25%</span></div>
+          <div style="border-left:3px solid #4EA8DE; padding-left:10px;"><span class="mono" style="font-weight:700; color:#4EA8DE;">BUY AED 0.68M vs INR</span><br><span style="font-size:11px; color:#8FA8A8;">Restores AED/INR hedge: 70% → 92% &middot; Brent Crude, −30% &middot; drift +22.5%</span></div>
+          <div style="margin-top:4px; padding-top:10px; border-top:1px dashed #2A5257;">
+            <div style="font-size:11.5px; font-weight:700; color:#E0A947; margin-bottom:6px;">FCNR(B) funding gap warnings</div>
+            <div style="font-size:11.5px; color:#EAF3F1;">🟠 <strong>$105M at risk</strong> under Spread +200bps — replace via fresh FCNR at ~450bps self-funded hedge cost, or wholesale funding.</div>
+            <div style="font-size:11.5px; color:#EAF3F1; margin-top:5px;">🟠 <strong>$90M at risk</strong> under Fed +100bps — replace via fresh FCNR at ~450bps self-funded hedge cost, or wholesale funding.</div>
+          </div>
+        </div>
+      </div>
+      <div style="background:#163A3D; border:1px solid #2A5257; border-radius:10px; padding:18px;">
+        <h3 class="display" style="font-size:15px; font-weight:700; margin:0 0 12px 0;">Most Stressed Scenario</h3>
+        <div style="background:#3A2420; border:1px solid #5C332C; border-radius:7px; padding:12px;">
+          <div style="font-weight:700; color:#EAF3F1;">GIFT City Liquidity — Extreme</div>
+          <div class="mono" style="font-size:20px; font-weight:700; color:#E4574C; margin-top:4px;">−$194,423</div>
+          <div style="font-size:11px; color:#8FA8A8; margin-top:2px;">aggregate portfolio impact</div>
+        </div>
+        <div style="margin-top:12px; font-size:11px; color:#8FA8A8;">Cumulative P&amp;L by pair, full ladder:</div>
+        <div style="font-size:11.5px; margin-top:5px; display:flex; flex-direction:column; gap:3px;" class="mono">
+          <div>USD/INR: −$1,203,050</div>
+          <div>SGD/INR: −$806,127</div>
+          <div>AED/INR: −$525,262</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ AI BRIEFING ============ -->
+    <div style="margin-top:26px; background:#16323A; border:1px solid #2A5257; border-radius:10px; padding:20px; border-left:3px solid {{accent}};">
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="{{accent}}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5L18 18M18 6l-2.5 2.5M8.5 15.5L6 18"/></svg>
+        <span style="font-size:11.5px; font-weight:700; color:{{accent}};">AI Morning Risk Briefing &middot; Claude Opus 5 via Amazon Bedrock</span>
+      </div>
+      <p style="font-size:13.5px; line-height:1.7; margin:0;">Overnight stress runs put our worst case at GIFT City Liquidity — Extreme, which would cost the book roughly $194k, with USD/INR carrying the bulk of that exposure as our largest and least hedged leg. The priority trade on the sheet is to buy AED 0.90M against INR, which trims the AED/INR gap that widens fastest under the liquidity scenarios without adding to our dollar concentration. This matters this morning because the funding side is on a clock: RBI's FCNR(B) swap window shuts to fresh mobilisation in nine days on 31 August, and under a +200bp India sovereign spread shock we estimate $105M of FCNR(B) funding sits at retention risk — a liquidity squeeze and a funding runoff hitting together is exactly the combination the extreme scenario assumes.</p>
+      <div style="font-size:10.5px; color:#6B8887; margin-top:10px; font-style:italic;">Not financial advice — for internal desk reference only.</div>
+    </div>
+
+    <!-- ============ MARKET INTELLIGENCE (secondary) ============ -->
+    <div style="margin-top:30px;">
+      <div style="font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:#5A7576; border-bottom:1px solid #1D474A; padding-bottom:8px; margin-bottom:16px;">Market Intelligence &amp; Evidence</div>
+      <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:16px;">
+
+        <div style="background:#123134; border:1px solid #1D474A; border-radius:9px; padding:16px;">
+          <div style="font-size:12px; font-weight:700; margin-bottom:8px;">Currency Correlation</div>
+          <table style="width:100%; border-collapse:collapse; font-size:11px;" class="mono">
+            <tr><td style="padding:4px;"></td><td style="padding:4px; text-align:center; color:#8FA8A8;">USD</td><td style="padding:4px; text-align:center; color:#8FA8A8;">SGD</td><td style="padding:4px; text-align:center; color:#8FA8A8;">AED</td></tr>
+            <tr><td style="padding:4px; color:#8FA8A8;">USD</td><td style="padding:4px; text-align:center; background:#2A5257;">1.00</td><td style="padding:4px; text-align:center;">0.03</td><td style="padding:4px; text-align:center;">−0.00</td></tr>
+            <tr><td style="padding:4px; color:#8FA8A8;">SGD</td><td style="padding:4px; text-align:center;">0.03</td><td style="padding:4px; text-align:center; background:#2A5257;">1.00</td><td style="padding:4px; text-align:center;">0.02</td></tr>
+            <tr><td style="padding:4px; color:#8FA8A8;">AED</td><td style="padding:4px; text-align:center;">−0.00</td><td style="padding:4px; text-align:center;">0.02</td><td style="padding:4px; text-align:center; background:#2A5257;">1.00</td></tr>
+          </table>
+          <div style="font-size:10px; color:#6B8887; margin-top:8px; line-height:1.5;">Near-zero — reflects independently-seeded synthetic series, not a market finding. The shock ladder's shared vol/mean per theme is what actually correlates the books under stress.</div>
+        </div>
+
+        <div style="background:#123134; border:1px solid #1D474A; border-radius:9px; padding:16px;">
+          <div style="font-size:12px; font-weight:700; margin-bottom:8px;">P&amp;L Attribution — Most Stressed</div>
+          <svg viewBox="0 0 260 140" style="width:100%; height:110px;">
+            <line x1="20" y1="120" x2="250" y2="120" stroke="#2A5257"/>
+            <rect x="30" y="20" width="34" height="0" fill="#5A7576"/>
+            <rect x="74" y="20" width="34" height="41" fill="#E4574C"/>
+            <rect x="118" y="61" width="34" height="30" fill="#E4574C"/>
+            <rect x="162" y="91" width="34" height="19" fill="#E4574C"/>
+            <rect x="206" y="20" width="34" height="90" fill="#4EA8DE"/>
+            <text x="47" y="134" text-anchor="middle" font-size="8" fill="#8FA8A8">Start</text>
+            <text x="91" y="134" text-anchor="middle" font-size="8" fill="#8FA8A8">USD</text>
+            <text x="135" y="134" text-anchor="middle" font-size="8" fill="#8FA8A8">SGD</text>
+            <text x="179" y="134" text-anchor="middle" font-size="8" fill="#8FA8A8">AED</text>
+            <text x="223" y="134" text-anchor="middle" font-size="8" fill="#8FA8A8">Total</text>
+          </svg>
+          <div class="mono" style="font-size:10px; color:#8FA8A8; display:flex; justify-content:space-between; margin-top:4px;"><span>−$89K</span><span>−$64K</span><span>−$41K</span><span style="color:#4EA8DE;">−$194K</span></div>
+        </div>
+
+        <div style="background:#123134; border:1px solid #1D474A; border-radius:9px; padding:16px;">
+          <div style="font-size:12px; font-weight:700; margin-bottom:8px;">30-Day VaR Trend</div>
+          <svg viewBox="0 0 260 110" style="width:100%; height:90px;">
+            <line x1="10" y1="70" x2="250" y2="70" stroke="#5A7576" stroke-dasharray="3,3"/>
+            <polyline points="10,58 30,66 50,52 70,74 90,60 110,48 130,66 150,80 170,58 190,44 210,62 230,50 250,68" fill="none" stroke="#4EA8DE" stroke-width="1.8"/>
+          </svg>
+          <div style="font-size:10px; color:#6B8887; margin-top:4px;">Illustrative historical trend — synthetic, not live. Centered on today's baseline portfolio VaR (~$100.7K).</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ MATURITY CALENDAR + METHODOLOGY + EXPORT ============ -->
+    <div style="margin-top:28px; display:grid; grid-template-columns:1.3fr 1fr; gap:16px;">
+      <div style="background:#123134; border:1px solid #1D474A; border-radius:9px; padding:16px;">
+        <div style="font-size:12px; font-weight:700; margin-bottom:10px;">Hedge &amp; Funding Maturity Calendar</div>
+        <table style="width:100%; border-collapse:collapse; font-size:11px;">
+          <tr style="color:#8FA8A8; font-size:10px; text-transform:uppercase;"><td style="padding:4px 6px;">Position</td><td style="padding:4px 6px;">Instrument</td><td style="padding:4px 6px; text-align:right;">Notional</td><td style="padding:4px 6px; text-align:right;">Date</td></tr>
+          <tr style="border-top:1px solid #1D474A;"><td style="padding:5px 6px; color:#E0A947;">FCNR(B) Book</td><td style="padding:5px 6px;">RBI mobilisation deadline</td><td class="mono" style="padding:5px 6px; text-align:right;">$300.0M</td><td class="mono" style="padding:5px 6px; text-align:right;">31 Aug 2026</td></tr>
+          <tr style="border-top:1px solid #1D474A;"><td style="padding:5px 6px; color:#E0A947;">FCNR(B) Book</td><td style="padding:5px 6px;">RBI swap unwind deadline</td><td class="mono" style="padding:5px 6px; text-align:right;">$300.0M</td><td class="mono" style="padding:5px 6px; text-align:right;">11 Sep 2026</td></tr>
+          <tr style="border-top:1px solid #1D474A;"><td style="padding:5px 6px;">USD/INR</td><td style="padding:5px 6px;">1-month FX forward</td><td class="mono" style="padding:5px 6px; text-align:right;">$2.67M</td><td class="mono" style="padding:5px 6px; text-align:right;">21 Sep 2026</td></tr>
+          <tr style="border-top:1px solid #1D474A;"><td style="padding:5px 6px;">SGD/INR</td><td style="padding:5px 6px;">1-month FX forward</td><td class="mono" style="padding:5px 6px; text-align:right;">$1.25M</td><td class="mono" style="padding:5px 6px; text-align:right;">21 Sep 2026</td></tr>
+          <tr style="border-top:1px solid #1D474A;"><td style="padding:5px 6px;">AED/INR</td><td style="padding:5px 6px;">1-month FX forward</td><td class="mono" style="padding:5px 6px; text-align:right;">$0.70M</td><td class="mono" style="padding:5px 6px; text-align:right;">21 Sep 2026</td></tr>
+          <tr style="border-top:1px solid #1D474A; color:#6B8887;"><td style="padding:5px 6px;" colspan="4">+ 6 more forward tranches (2- and 3-month) through 20 Nov 2026</td></tr>
+        </table>
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:12px;">
+        <details style="background:#123134; border:1px solid #1D474A; border-radius:9px; padding:14px;">
+          <summary style="font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:space-between;">Quantum Methodology <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#8FA8A8" stroke-width="2.2"><path d="M6 9l6 6 6-6"/></svg></summary>
+          <div style="font-size:11px; color:#8FA8A8; line-height:1.65; margin-top:10px;">
+            IQAE runs for real on one representative severity per theme, per pair (27 runs); other variants scale by vol_multiplier ratio. Classical VaR is real on all 129 combinations. No wall-clock speed claim — the result shown is query-complexity efficiency (O(1/ε) vs O(1/ε²)) only. FCNR retention modeled on exactly 2 of 9 themes (Fed Rate Move, India Sovereign Spread); the rest carry retention_multiplier = 1.0.
+          </div>
+        </details>
+        <div style="background:#123134; border:1px solid #1D474A; border-radius:9px; padding:16px; text-align:center;">
+          <div style="font-size:12px; font-weight:700; margin-bottom:8px;">Export Morning Report</div>
+          <div style="display:inline-flex; align-items:center; gap:8px; padding:9px 18px; background:{{accent}}; color:#0F2B2E; border-radius:6px; font-size:12px; font-weight:700;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0F2B2E" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 21h16"/></svg>
+            GIFT_Risk_Morning_Report_2026-08-22.txt
+          </div>
+          <div style="font-size:10px; color:#6B8887; margin-top:8px;">Live in the working Streamlit app — this mockup shows the styled affordance.</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="text-align:center; margin-top:32px; padding-top:16px; border-top:1px solid #1D474A; font-size:10.5px; color:#5A7576;">
+      GIFT Risk is a hackathon prototype (Track 2 — Quantum Tech in Financial Services). Query-complexity comparison only; no wall-clock speed claim.
+    </div>
+  </div>
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{"accent":{"editor":"color","default":"#4EA8DE","options":["#4EA8DE","#D4A84B","#4FD9C0","#8B9DF6"]}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    // theme, severity, dot, [usd,sgd,aed] pnl, [usd,sgd,aed] drift, [usd,sgd,aed] action, fcnrRetention|null, fcnrGap|null
+    this.HEATMAP = [
+      ["Brent Crude Oil","Crude −30%","🔴",[-46329,-30392,-20079],[.15,.1875,.225],[1,1,1],null,null],
+      ["Brent Crude Oil","Crude −20%","🟠",[-37063,-24314,-16063],[.10,.125,.15],[1,1,1],null,null],
+      ["Brent Crude Oil","Crude −10%","🟢",[-27797,-18235,-12047],[.05,.0625,.075],[1,1,1],null,null],
+      ["Brent Crude Oil","Crude +10%","🟢",[-27797,-18235,-12047],[.05,.0625,.075],[1,1,1],null,null],
+      ["Brent Crude Oil","Crude +20%","🟠",[-37063,-24314,-16063],[.10,.125,.15],[1,1,1],null,null],
+      ["Brent Crude Oil","Crude +30%","🔴",[-46329,-30392,-20079],[.15,.1875,.225],[1,1,1],null,null],
+      ["Fed Rate Move","Fed −50bps","🟡",[-20064,-13654,-8765],[.04,.05,.06],[0,1,1],1.15,-45e6],
+      ["Fed Rate Move","Fed −25bps","🟢",[-17198,-11703,-7513],[.02,.025,.03],[0,0,0],1.05,-15e6],
+      ["Fed Rate Move","Fed +25bps","🟢",[-18631,-12679,-8139],[.03,.0375,.045],[0,0,0],.92,24e6],
+      ["Fed Rate Move","Fed +50bps","🟠",[-22931,-15605,-10017],[.06,.075,.09],[1,1,1],.85,45e6],
+      ["Fed Rate Move","Fed +75bps","🔴",[-28663,-19506,-12522],[.10,.125,.15],[1,1,1],.78,66e6],
+      ["Fed Rate Move","Fed +100bps","🔴",[-34396,-23407,-15026],[.14,.175,.21],[1,1,1],.70,90e6],
+      ["USD/INR Spot Move","INR −3%","🔴",[-18144,-12384,-7921],[.03,.0375,.045],[0,0,0],null,null],
+      ["USD/INR Spot Move","INR −2%","🟠",[-16748,-11431,-7312],[.02,.025,.03],[0,0,0],null,null],
+      ["USD/INR Spot Move","INR −1%","🟢",[-15353,-10478,-6702],[.01,.0125,.015],[0,0,0],null,null],
+      ["USD/INR Spot Move","INR +1%","🟢",[-15353,-10478,-6702],[.01,.0125,.015],[0,0,0],null,null],
+      ["USD/INR Spot Move","INR +2%","🟠",[-16748,-11431,-7312],[.02,.025,.03],[0,0,0],null,null],
+      ["USD/INR Spot Move","INR +3%","🔴",[-18144,-12384,-7921],[.03,.0375,.045],[0,0,0],null,null],
+      ["India Sovereign Spread","Spread +50bps","🟢",[-23181,-15239,-10032],[.03,.0375,.045],[0,0,0],.90,30e6],
+      ["India Sovereign Spread","Spread +100bps","🟡",[-30314,-19928,-13119],[.07,.0875,.105],[1,1,1],.8167,55e6],
+      ["India Sovereign Spread","Spread +150bps","🟠",[-37447,-24617,-16206],[.11,.1375,.165],[1,1,1],.7333,80e6],
+      ["India Sovereign Spread","Spread +200bps","🔴",[-44579,-29306,-19292],[.15,.1875,.225],[1,1,1],.65,105e6],
+      ["Global Equity (SPY)","SPY +10%","🟢",[-20948,-13787,-9058],[.02,.025,.03],[0,0,0],null,null],
+      ["Global Equity (SPY)","SPY +5%","🟢",[-19203,-12638,-8303],[.01,.0125,.015],[0,0,0],null,null],
+      ["Global Equity (SPY)","SPY −5%","🟡",[-22694,-14936,-9813],[.03,.0375,.045],[0,0,0],null,null],
+      ["Global Equity (SPY)","SPY −10%","🟠",[-27931,-18383,-12077],[.06,.075,.09],[1,1,1],null,null],
+      ["Global Equity (SPY)","SPY −20%","🔴",[-40151,-26426,-17361],[.13,.1625,.195],[1,1,1],null,null],
+      ["Global Equity (SPY)","SPY −30%","🔴",[-48879,-32170,-21135],[.18,.225,.27],[1,1,1],null,null],
+      ["Crypto Contagion (BTC)","BTC −20%","🟢",[-22835,-15026,-9876],[.03,.0375,.045],[0,0,0],null,null],
+      ["Crypto Contagion (BTC)","BTC −35%","🟡",[-26348,-17338,-11396],[.05,.0625,.075],[1,1,1],null,null],
+      ["Crypto Contagion (BTC)","BTC −50%","🟠",[-31617,-20806,-13675],[.08,.10,.12],[1,1,1],null,null],
+      ["Crypto Contagion (BTC)","BTC −70%","🔴",[-38643,-25429,-16714],[.12,.15,.18],[1,1,1],null,null],
+      ["Gold (Flight-to-Safety)","Gold +5%","🟢",[-16491,-11265,-7195],[.02,.025,.03],[0,0,0],null,null],
+      ["Gold (Flight-to-Safety)","Gold +10%","🟠",[-19240,-13143,-8394],[.04,.05,.06],[0,1,1],null,null],
+      ["Gold (Flight-to-Safety)","Gold +20%","🔴",[-23362,-15959,-10193],[.07,.0875,.105],[1,1,1],null,null],
+      ["China PMI Miss","China PMI −1pt","🟢",[-21798,-14316,-9440],[.02,.025,.03],[0,0,0],null,null],
+      ["China PMI Miss","China PMI −2pt","🟡",[-27248,-17894,-11800],[.05,.0625,.075],[1,1,1],null,null],
+      ["China PMI Miss","China PMI −3pt","🟠",[-32697,-21473,-14160],[.08,.10,.12],[1,1,1],null,null],
+      ["China PMI Miss","China PMI −5pt","🔴",[-39963,-26245,-17307],[.12,.15,.18],[1,1,1],null,null],
+      ["GIFT City Liquidity","Mild","🟢",[-44547,-32082,-20582],[.05,.0625,.075],[1,1,1],null,null],
+      ["GIFT City Liquidity","Moderate","🟡",[-59396,-42776,-27443],[.10,.125,.15],[1,1,1],null,null],
+      ["GIFT City Liquidity","Severe","🟠",[-74245,-53470,-34303],[.15,.1875,.225],[1,1,1],null,null],
+      ["GIFT City Liquidity","Extreme","🔴",[-89094,-64164,-41164],[.20,.25,.30],[1,1,1],null,null],
+    ];
+  }
+
+  renderVals() {
+    return { accent: this.props.accent ?? "#4EA8DE" };
+  }
+
+  componentDidMount() {
+    const el = document.getElementById("heatmapBody");
+    if (!el) return;
+    const fmt = (v) => (v >= 0 ? "+" : "−") + "$" + Math.abs(Math.round(v)).toLocaleString();
+    let html = "";
+    for (const row of this.HEATMAP) {
+      const [theme, sev, dot, pnl, drift, action, ret, gap] = row;
+      const cells = pnl.map((v, i) => {
+        const marker = action[i] ? "▸ " : "";
+        const bg = v < 0 ? `background:rgba(228,87,76,${Math.min(0.5, Math.abs(v) / 100000)});` : "";
+        return `<div style="text-align:right; padding:5px 4px; ${bg} font-family:'Space Mono',monospace; font-size:10.5px;">${marker}${fmt(v)}</div>`;
+      }).join("");
+      const retCell = ret !== null
+        ? `<div style="text-align:right; padding:5px 4px; font-family:'Space Mono',monospace; font-size:10.5px; color:#E0A947;">${Math.round(ret*100)}%</div>`
+        : `<div style="text-align:right; padding:5px 4px; color:#3E5657; font-size:10.5px;">—</div>`;
+      const gapCell = gap !== null
+        ? `<div style="text-align:right; padding:5px 4px; font-family:'Space Mono',monospace; font-size:10.5px; color:${gap>0?'#E0A947':'#4CAF7D'};">${gap>=0?'+':'−'}$${Math.abs(Math.round(gap/1e6))}M</div>`
+        : `<div style="text-align:right; padding:5px 4px; color:#3E5657; font-size:10.5px;">—</div>`;
+      html += `<div style="display:grid; grid-template-columns:2fr .9fr .9fr .9fr .8fr .9fr; gap:0; padding:0 16px; border-bottom:1px solid #1A4144; align-items:center;">
+        <div style="padding:5px 4px; font-size:11px; display:flex; align-items:center; gap:6px;"><span>${dot}</span><span>${theme} · ${sev}</span></div>
+        ${cells}${retCell}${gapCell}
+      </div>`;
+    }
+    el.innerHTML = html;
+  }
+}
+</script>
+</body>
+</html>
