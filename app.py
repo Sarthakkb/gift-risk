@@ -51,6 +51,25 @@ def md_safe(text: str) -> str:
 
 st.set_page_config(page_title="GIFT Risk", page_icon="🏦", layout="wide")
 
+# v5-inspired theme: Plus Jakarta Sans (UI) + JetBrains Mono (figures), on
+# top of the light navy/teal palette set in .streamlit/config.toml
+st.markdown(
+    """
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+    html, body, [class*="css"] { font-family: 'Plus Jakarta Sans', sans-serif; }
+    code, .stMetric [data-testid="stMetricValue"], .stDataFrame, .stNumberInput input, .stSlider {
+        font-family: 'JetBrains Mono', monospace;
+    }
+    [data-testid="stMetricValue"] { color: #16233D; }
+    .stTabs [data-baseweb="tab-list"] { gap: 4px; }
+    .stTabs [data-baseweb="tab"] { font-weight: 600; }
+    h1, h2, h3 { font-weight: 800 !important; color: #16233D; }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
 # ------------------------------------------------------------------ header
 st.title("GIFT Risk — FX Treasury Dashboard")
 st.caption("GIFT IFSC | Quantum-Accelerated Tail Risk")
@@ -61,7 +80,10 @@ st.warning(
 st.caption(f"Last updated: {datetime.datetime.now():%A, %d %b %Y — %H:%M} (session load)")
 
 
-tab_dashboard, tab_hdfc = st.tabs(["Portfolio Dashboard", "HDFC Case Study — Live Demo"])
+tab_dashboard, tab_hdfc, tab_shock, tab_quantum = st.tabs([
+    "Portfolio Dashboard", "HDFC Case Study — Live Demo",
+    "Shock → Response", "Quantum vs. Classical",
+])
 
 with tab_dashboard:
 
@@ -610,11 +632,21 @@ with tab_dashboard:
     # ============================================================ SECTION 4
     st.subheader("Portfolio Stress Summary")
     agg_sorted = agg.sort_values("total_pnl")
-    fig, ax = plt.subplots(figsize=(10, max(4, len(agg_sorted) * 0.16)))
+    fig, ax = plt.subplots(figsize=(11, max(4, len(agg_sorted) * 0.19)))
     labels = [f"{t} · {s}" for t, s in zip(agg_sorted["theme_name"], agg_sorted["severity_label"])]
-    colors_bar = ["#A23B2C" if v < 0 else "#45633A" for v in agg_sorted["total_pnl"]]
-    ax.barh(labels, agg_sorted["total_pnl"], color=colors_bar)
+    values = agg_sorted["total_pnl"].to_numpy()
+    colors_bar = ["#C0362C" if v < 0 else "#157F3C" for v in values]
+    ax.barh(labels, values, color=colors_bar)
     ax.axvline(0, color="black", linewidth=0.8)
+    # value labels OUTSIDE the bar, on the far side from zero, so they never
+    # sit on top of the bar's own fill or collide with the axis tick labels
+    span = values.max() - values.min()
+    pad = span * 0.02
+    for i, v in enumerate(values):
+        x = v + pad if v >= 0 else v - pad
+        ha = "left" if v >= 0 else "right"
+        ax.text(x, i, f"${v:,.0f}", va="center", ha=ha, fontsize=8, color=colors_bar[i])
+    ax.set_xlim(values.min() - span * 0.18, values.max() + span * 0.18)
     ax.set_xlabel("Total portfolio P&L impact (USD)")
     ax.set_title("All 43 scenario variants, aggregated across the 3-pair portfolio")
     fig.tight_layout()
@@ -640,7 +672,7 @@ with tab_dashboard:
             cum.append(cum[-1] + v)
         bottoms = [0.0] + cum[:-1] + [0.0]
         heights = [0.0] + values[1:-1] + [values[-1]]
-        bar_colors = ["#999"] + ["#A23B2C" if v < 0 else "#45633A" for v in values[1:-1]] + ["#2A4494"]
+        bar_colors = ["#999"] + ["#C0362C" if v < 0 else "#157F3C" for v in values[1:-1]] + ["#2F4F8F"]
 
         fig2, ax2 = plt.subplots(figsize=(6, 4))
         ax2.bar(steps, heights, bottom=bottoms, color=bar_colors)
@@ -667,7 +699,7 @@ with tab_dashboard:
 
         trend_df = _var_trend(base_total)
         fig3, ax3 = plt.subplots(figsize=(6, 4))
-        ax3.plot(trend_df["Day"], trend_df["Portfolio VaR (USD)"], color="#2A4494", linewidth=1.6)
+        ax3.plot(trend_df["Day"], trend_df["Portfolio VaR (USD)"], color="#2F4F8F", linewidth=1.6)
         ax3.axhline(base_total, color="#999", linestyle="--", linewidth=1, label="Today's baseline VaR")
         ax3.set_xlabel("Days ago")
         ax3.set_ylabel("Portfolio VaR (USD)")
@@ -875,47 +907,26 @@ with tab_hdfc:
     usd_rows = hdfc_shock_df[hdfc_shock_df["pair"] == "USD/INR"].copy()
 
     st.subheader("HDFC Bank — GIFT City Bond Book")
-    st.caption(
-        "A live worked example: real, current facts about an actual GIFT City "
-        "transaction, run through the same engine as the portfolio dashboard."
-    )
+    st.caption("As of 21 Aug 2026")
 
     st.info(
-        "**What actually happened, 21 Aug 2026:** HDFC Bank, through its GIFT "
-        "City IBU, priced **US\\$1.75 billion** in senior unsecured bonds — "
-        "**\\$500M at 5.159%, 3-year tenor** and **\\$1.25B at 5.4%, 5-year "
-        "tenor**. Both tranches settle **26 Aug 2026** and list on India INX "
-        "and NSE IX. Rated **Baa3 (Moody's) / BBB (S&P)**. Proceeds are "
-        "earmarked for overseas lending and other banking activities.\n\n"
+        "HDFC Bank, through its GIFT City IBU, priced **US\\$1.75 billion** "
+        "in senior unsecured bonds — **\\$500M at 5.159%, 3-year tenor** and "
+        "**\\$1.25B at 5.4%, 5-year tenor**. Both tranches settle "
+        "**26 Aug 2026** and list on India INX and NSE IX. Rated "
+        "**Baa3 (Moody's) / BBB (S&P)**. Proceeds are earmarked for overseas "
+        "lending and other banking activities.\n\n"
         "Sources: [Business Standard](https://www.business-standard.com/finance/news/hdfc-bank-raises-1-75-bn-through-overseas-bond-issue-to-fund-business-126082100360_1.html), "
         "[TipRanks](https://www.tipranks.com/news/company-announcements/hdfc-bank-raises-us1-75-billion-via-gift-city-bond-issuance)"
     )
 
     st.markdown(
-        "**Why this book is genuinely interesting for treasury:** the bond "
-        "is a USD *liability* — HDFC owes principal and coupon in dollars. "
-        "Proceeds funding overseas (USD-denominated) lending gives a natural "
-        "partial hedge, so the desk isn't starting from zero cover — but "
-        "tenor mismatches between the bond (3yr/5yr fixed maturities) and "
-        "the loans it funds, plus the coupon reset/refinancing risk when "
-        "each tranche matures, leave a real residual FX and rollover "
-        "exposure worth watching on the same shock ladder as every other book."
-    )
-
-    st.divider()
-
-    st.markdown("##### How an HDFC treasury officer would open this")
-    st.markdown(
-        "1. **See the new book flagged.** It shows up in Portfolio Positions "
-        "the same morning it settles — no separate system to check.\n"
-        "2. **Check today's VaR.** Same quantum-verified shock ladder as the "
-        "rest of the desk's books — no new methodology to trust.\n"
-        "3. **Check hedge status.** Given the natural USD-asset offset, is "
-        "the residual exposure inside policy, or does today's shock push it "
-        "past target?\n"
-        "4. **Read the AI note**, then **check the refinancing calendar** — "
-        "the 3-year tranche isn't due until 2029, but a rates or spread "
-        "shock *today* still repriced what refinancing it will cost."
+        "The bond is a USD *liability* — HDFC owes principal and coupon in "
+        "dollars. Proceeds funding overseas (USD-denominated) lending gives "
+        "a natural partial hedge, but tenor mismatches between the bond "
+        "(3yr/5yr fixed maturities) and the loans it funds, plus refinancing "
+        "risk when each tranche matures, leave a residual FX and rollover "
+        "exposure worth tracking on the same shock ladder as every other book."
     )
 
     st.divider()
@@ -1000,16 +1011,112 @@ with tab_hdfc:
             )
         st.session_state.hdfc_briefing = (hdfc_text, hdfc_source)
     hdfc_text, hdfc_source = st.session_state.hdfc_briefing
-    hdfc_label = (
-        "Bedrock · Claude Opus 5" if hdfc_source == "bedrock" else "Offline template (Bedrock unavailable)"
-    )
-    st.info(f"**{hdfc_label}** — not financial advice\n\n{md_safe(hdfc_text)}")
+    st.info(f"**AI-generated note**\n\n{md_safe(hdfc_text)}")
 
     st.caption(
-        "Everything above this line reuses the exact same shock ladder, quantum-verified "
-        "VaR, and hedge engine as the Portfolio Dashboard tab — only the position "
-        "(notional, exposure type, hedge ratio) is new. The real-world facts (amounts, "
-        "coupons, dates, ratings) are sourced and cited above; the hedge ratio and "
-        "resulting VaR/trade figures are illustrative, since HDFC's actual internal "
-        "hedging policy is not public information."
+        "Target hedge ratio is illustrative — HDFC's actual internal hedging "
+        "policy is not public information. Transaction terms above are sourced and cited."
     )
+
+# ================================================================= SHOCK -> RESPONSE TAB
+with tab_shock:
+    sr_baseline_var, sr_shock_df = _load_shock_results()
+
+    st.subheader("Shock → Response")
+    st.caption("Pick a position and a stress scenario. The engine tells you what to trade.")
+
+    sr_c1, sr_c2 = st.columns(2)
+    with sr_c1:
+        sr_pair = st.selectbox("Position", PAIRS, key="sr_pair")
+    with sr_c2:
+        sr_options = [
+            (theme_key, v["severity_label"])
+            for theme_key, theme in THEMES.items()
+            for v in theme["variants"]
+        ]
+        sr_labels = [f"{THEMES[tk]['name']} — {sev}" for tk, sev in sr_options]
+        sr_idx = st.selectbox(
+            "Stress scenario", range(len(sr_labels)),
+            format_func=lambda i: sr_labels[i], key="sr_scenario_idx",
+        )
+        sr_theme_key, sr_sev = sr_options[sr_idx]
+
+    sr_row = sr_shock_df[
+        (sr_shock_df["pair"] == sr_pair)
+        & (sr_shock_df["theme_key"] == sr_theme_key)
+        & (sr_shock_df["severity_label"] == sr_sev)
+    ].iloc[0]
+    sr_meta = meta_all[sr_pair]
+    sr_cfg = st.session_state.portfolio[sr_pair]
+    sr_imp = shock_impact(
+        sr_row["quantum_var_pct"], sr_row["vol_multiplier"], sr_cfg["target_hedge_ratio"],
+        sr_cfg["notional"], sr_meta["exposure_type"], sr_pair,
+    )
+
+    st.caption(sr_row["narrative"])
+
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric("Classical VaR", f"{sr_row['classical_var_pct']:.3%}")
+    m2.metric("Quantum VaR", f"{sr_row['quantum_var_pct']:.3%}",
+              "verified" if sr_row["quantum_source"] == "measured" else "scaled")
+    m3.metric("P&L impact", f"${sr_imp.pnl_usd:,.0f}")
+    m4.metric("Hedge ratio: target → required", f"{sr_cfg['target_hedge_ratio']:.0%} → {sr_imp.required_hedge_ratio:.0%}")
+
+    if sr_imp.action_required and sr_imp.trade_text:
+        st.error(f"**ACTION REQUIRED**\n\n{sr_imp.trade_text}")
+    else:
+        st.success("No trade required — within drift tolerance at the current target hedge ratio.")
+
+# ================================================================= QUANTUM VS CLASSICAL TAB
+with tab_quantum:
+    st.subheader("Quantum vs. Classical")
+
+    bench_path = DATA_DIR / "benchmark_results.csv"
+    bench_df = pd.read_csv(bench_path)
+
+    qc1, qc2 = st.columns(2)
+    with qc1:
+        fig_q1, ax_q1 = plt.subplots(figsize=(6, 4.5))
+        ax_q1.plot(bench_df["epsilon"], bench_df["classical_samples"], "o-", color="#2F4F8F", label="Classical MC")
+        ax_q1.plot(bench_df["epsilon"], bench_df["quantum_queries"], "s-", color="#0E7A90", label="Quantum IQAE")
+        ax_q1.set_xscale("log")
+        ax_q1.set_yscale("log")
+        ax_q1.invert_xaxis()
+        ax_q1.set_xlabel("target error ε")
+        ax_q1.set_ylabel("samples / queries")
+        ax_q1.legend()
+        ax_q1.grid(True, which="both", alpha=0.25)
+        fig_q1.tight_layout()
+        st.pyplot(fig_q1)
+
+    with qc2:
+        fig_q2, ax_q2 = plt.subplots(figsize=(6, 4.5))
+        colors_q = ["#C0362C" if s < 1 else "#157F3C" for s in bench_df["speedup"]]
+        ax_q2.bar([f"{e:g}" for e in bench_df["epsilon"]], bench_df["speedup"], color=colors_q)
+        ax_q2.axhline(1, color="black", linewidth=0.8)
+        ax_q2.set_xlabel("target error ε")
+        ax_q2.set_ylabel("speedup (×)")
+        for i, s in enumerate(bench_df["speedup"]):
+            ax_q2.annotate(f"{s:.1f}×", (i, s), ha="center", va="bottom", fontsize=9)
+        fig_q2.tight_layout()
+        st.pyplot(fig_q2)
+
+    fig_q3, ax_q3 = plt.subplots(figsize=(12, 2.2))
+    ax_q3.axis("off")
+    boxes = [
+        (0.02, "Synthetic\nFX data"),
+        (0.22, "Classical\nMonte Carlo"),
+        (0.42, "Quantum\nIQAE (Aer)"),
+        (0.62, "95% VaR\n(classical + quantum)"),
+        (0.82, "Hedge &\ntrade engine"),
+    ]
+    for x, label in boxes:
+        ax_q3.add_patch(plt.Rectangle((x, 0.2), 0.14, 0.6, facecolor="#FFFFFF", edgecolor="#0E7A90", linewidth=1.5))
+        ax_q3.text(x + 0.07, 0.5, label, ha="center", va="center", fontsize=9, color="#16233D")
+    for x1, x2 in zip([b[0] for b in boxes[:-1]], [b[0] for b in boxes[1:]]):
+        ax_q3.annotate("", xy=(x2, 0.5), xytext=(x1 + 0.14, 0.5),
+                       arrowprops=dict(arrowstyle="->", color="#93A0B8", lw=1.5))
+    ax_q3.set_xlim(0, 1)
+    ax_q3.set_ylim(0, 1)
+    fig_q3.tight_layout()
+    st.pyplot(fig_q3)
